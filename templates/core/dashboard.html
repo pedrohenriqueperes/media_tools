@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="page-header">
-  <h1 class="page-header-title">Meus Jobs</h1>
+  <h1 class="page-header-title">Minhas Tarefas</h1>
   <div class="d-flex gap-2">
     {% if page.object_list %}
     <button id="clear-all-btn" class="btn btn-outline-secondary">
@@ -15,7 +15,7 @@
       <i class="ri-folders-line"></i> Lote
     </a>
     <a href="{% url 'submit_job' %}" class="btn btn-primary">
-      <i class="ri-add-line"></i> Novo job
+      <i class="ri-add-line"></i> Nova tarefa
     </a>
   </div>
 </div>
@@ -57,7 +57,7 @@
                 <button class="delete-job-btn"
                         data-pk="{{ job.pk }}"
                         data-url="{% url 'delete_job' job.pk %}"
-                        title="Excluir job">
+                        title="Excluir tarefa">
                   <i class="ri-close-line"></i>
                 </button>
               </div>
@@ -129,7 +129,7 @@
 {% else %}
   <div class="empty-state">
     <div class="empty-icon"><i class="ri-inbox-2-line"></i></div>
-    <p class="empty-title">Nenhum job ainda</p>
+    <p class="empty-title">Nenhuma tarefa ainda</p>
     <p class="empty-sub">Envie uma imagem ou vídeo para começar a processar.</p>
     <a href="{% url 'submit_job' %}" class="btn btn-primary mt-2">Enviar primeiro arquivo</a>
   </div>
@@ -377,7 +377,7 @@
       e.stopPropagation();
       const pk  = btn.dataset.pk;
       const url = btn.dataset.url;
-      showToast('Excluir este job?', () => {
+      showToast('Excluir esta tarefa?', () => {
         fetch(url, { method: 'POST', headers: { 'X-CSRFToken': CSRF } })
           .then(r => r.json())
           .then(data => {
@@ -397,7 +397,7 @@
   const clearAllBtn = document.getElementById('clear-all-btn');
   if (clearAllBtn) {
     clearAllBtn.addEventListener('click', () => {
-      showToast('Excluir todos os jobs?', () => {
+      showToast('Excluir todas as tarefas?', () => {
         fetch('{% url "clear_jobs" %}', { method: 'POST', headers: { 'X-CSRFToken': CSRF } })
           .then(r => r.json())
           .then(data => { if (data.ok) window.location.reload(); });

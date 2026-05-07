@@ -2,7 +2,7 @@
 
 **PT** · [EN](#mediatools-1)
 
-Aplicação web Django para processamento de mídia. Faça upload de imagens ou vídeos e execute operações como redimensionamento, compressão, extração de frames, conversão de formato e geração de GIFs — tudo pelo navegador. Os arquivos são apagados automaticamente 60 segundos após o processamento.
+Aplicação web Django para processamento de mídia. Faça upload de imagens ou vídeos e execute operações como redimensionamento, compressão, extração de frames, conversão de formato e geração de GIFs — tudo pelo navegador.
 
 ## Funcionalidades
 
@@ -21,7 +21,6 @@ Aplicação web Django para processamento de mídia. Faça upload de imagens ou 
 - Python 3.11+
 - PostgreSQL
 - ffmpeg (`brew install ffmpeg`)
-- Redis (para Celery)
 
 ## Setup
 
@@ -53,26 +52,30 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Em outro terminal, inicie o worker Celery (necessário para a limpeza automática de arquivos):
-
-```bash
-celery -A config worker -l info
-```
-
 Acesse em `http://localhost:8000`.
 
-## Limpeza automática
+## Limpeza automática de arquivos
 
-Os arquivos de input e output são apagados automaticamente **60 segundos** após o término do processamento (sucesso ou erro). O histórico de jobs permanece no dashboard, mas o download não estará mais disponível. Para processar novamente, basta reenviar o arquivo.
+Os arquivos de input e output são **apagados automaticamente 60 segundos** após o término do processamento, tanto para tarefas concluídas quanto para erros. Nenhuma configuração extra é necessária — uma thread de background inicia junto com o servidor e escaneia o banco a cada 30 segundos.
+
+O histórico de tarefas permanece visível no dashboard. Após a expiração, o download não estará mais disponível e a interface exibe um aviso. Para processar novamente, basta reenviar o arquivo.
+
+Para remover tarefas e arquivos mais antigos manualmente:
+
+```bash
+python manage.py cleanup_old_jobs           # padrão: remove registros com mais de 7 dias
+python manage.py cleanup_old_jobs --days 1
+```
 
 ## Estrutura
 
 ```
 config/              # Configurações Django (settings, urls, wsgi, celery)
   seo_views.py       # Views para robots.txt e sitemap.xml
-core/                # App principal
-  models.py          # MediaJob — registro de cada processamento
-  tasks.py           # Lógica de processamento e task de limpeza (Celery)
+core/
+  models.py          # MediaJob — registro de cada tarefa
+  tasks.py           # Lógica de processamento + cleanup_worker_loop
+  apps.py            # Inicia a thread de limpeza no AppConfig.ready()
   views.py           # dashboard, submit_job, submit_batch, job_detail
   forms.py           # MediaJobForm com validação por tipo
 templates/
@@ -80,9 +83,9 @@ templates/
   core/              # home, dashboard, submit, submit_batch, job_detail
   account/           # Overrides allauth (login, signup)
 media/               # Uploads e outputs (não versionado)
-  uploads/           # Arquivos enviados (input_file dos jobs)
-    batch_{pk}/      # Inputs de jobs de conversão em lote
-  outputs/{pk}/      # Resultados processados por job
+  uploads/           # Arquivos de input (tarefas únicas e lote)
+    batch_{pk}/      # Inputs de conversão em lote
+  outputs/{pk}/      # Resultados processados, um diretório por tarefa
 ```
 
 ## Rotas principais
@@ -90,10 +93,10 @@ media/               # Uploads e outputs (não versionado)
 | Rota | Descrição |
 |---|---|
 | `/` | Home pública |
-| `/dashboard/` | Lista de jobs (requer login) |
-| `/submit/` | Envio de arquivo único |
-| `/submit/batch/` | Envio de múltiplas imagens para conversão em lote |
-| `/job/<pk>/` | Detalhes e resultado de um job |
+| `/dashboard/` | Lista de tarefas (requer login) |
+| `/submit/` | Nova tarefa — arquivo único |
+| `/submit/batch/` | Conversão em lote de imagens |
+| `/job/<pk>/` | Detalhe e download do resultado |
 | `/sitemap.xml` | Sitemap XML |
 | `/robots.txt` | Robots.txt |
 
@@ -107,17 +110,7 @@ media/               # Uploads e outputs (não versionado)
 | Frontend | Bootstrap 5 + Plus Jakarta Sans + Remix Icons |
 | Imagens | Pillow + OpenCV |
 | Vídeos | ffmpeg + MoviePy |
-| Fila de tarefas | Celery + Redis |
 | Static files | Whitenoise |
-
-## Comandos úteis
-
-```bash
-python manage.py makemigrations core   # após alterar models.py
-python manage.py migrate
-python manage.py cleanup_old_jobs      # remove jobs e arquivos com mais de 7 dias
-python manage.py cleanup_old_jobs --days 1
-```
 
 ---
 
@@ -125,7 +118,7 @@ python manage.py cleanup_old_jobs --days 1
 
 **EN** · [PT](#mediatools)
 
-A Django web app for media processing. Upload images or videos and run operations like resizing, compression, frame extraction, format conversion and GIF generation — all from the browser. Files are automatically deleted 60 seconds after processing.
+A Django web app for media processing. Upload images or videos and run operations like resizing, compression, frame extraction, format conversion and GIF generation — all from the browser.
 
 ## Features
 
@@ -144,7 +137,6 @@ A Django web app for media processing. Upload images or videos and run operation
 - Python 3.11+
 - PostgreSQL
 - ffmpeg (`brew install ffmpeg`)
-- Redis (for Celery)
 
 ## Setup
 
@@ -176,26 +168,30 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-In a separate terminal, start the Celery worker (required for automatic file cleanup):
-
-```bash
-celery -A config worker -l info
-```
-
 Open `http://localhost:8000`.
 
-## Automatic cleanup
+## Automatic file cleanup
 
-Input and output files are automatically deleted **60 seconds** after processing completes (success or error). Job history remains visible in the dashboard, but the download link will no longer be available. To process again, simply re-upload the file.
+Input and output files are **automatically deleted 60 seconds** after processing completes, for both successful and failed tasks. No extra configuration required — a background thread starts with the server and scans the database every 30 seconds.
+
+Task history remains visible in the dashboard. After expiry, the download is no longer available and the UI shows a notice. To process again, simply re-upload the file.
+
+To manually remove old tasks and files:
+
+```bash
+python manage.py cleanup_old_jobs           # default: removes records older than 7 days
+python manage.py cleanup_old_jobs --days 1
+```
 
 ## Project structure
 
 ```
 config/              # Django project (settings, urls, wsgi, celery)
   seo_views.py       # robots.txt and sitemap.xml views
-core/                # Main app
-  models.py          # MediaJob — tracks each processing request
-  tasks.py           # Processing logic and Celery cleanup task
+core/
+  models.py          # MediaJob — tracks each task
+  tasks.py           # Processing logic + cleanup_worker_loop
+  apps.py            # Starts the cleanup thread in AppConfig.ready()
   views.py           # dashboard, submit_job, submit_batch, job_detail
   forms.py           # MediaJobForm with per-type file validation
 templates/
@@ -203,9 +199,9 @@ templates/
   core/              # home, dashboard, submit, submit_batch, job_detail
   account/           # allauth overrides (login, signup)
 media/               # Uploads and outputs (not committed)
-  uploads/           # Single-file job inputs (Django FileField)
-    batch_{pk}/      # Batch job inputs (saved manually by view)
-  outputs/{pk}/      # Processed results, one directory per job
+  uploads/           # Input files (single tasks and batch)
+    batch_{pk}/      # Batch conversion inputs
+  outputs/{pk}/      # Processed results, one directory per task
 ```
 
 ## Routes
@@ -213,10 +209,10 @@ media/               # Uploads and outputs (not committed)
 | Route | Description |
 |---|---|
 | `/` | Public home page |
-| `/dashboard/` | Job list (login required) |
-| `/submit/` | Single file upload |
+| `/dashboard/` | Task list (login required) |
+| `/submit/` | New task — single file |
 | `/submit/batch/` | Multi-image batch conversion |
-| `/job/<pk>/` | Job detail and result download |
+| `/job/<pk>/` | Task detail and result download |
 | `/sitemap.xml` | XML sitemap |
 | `/robots.txt` | Robots.txt |
 
@@ -230,14 +226,4 @@ media/               # Uploads and outputs (not committed)
 | Frontend | Bootstrap 5 + Plus Jakarta Sans + Remix Icons |
 | Images | Pillow + OpenCV |
 | Videos | ffmpeg + MoviePy |
-| Task queue | Celery + Redis |
 | Static files | Whitenoise |
-
-## Useful commands
-
-```bash
-python manage.py makemigrations core       # after changing models.py
-python manage.py migrate
-python manage.py cleanup_old_jobs          # remove jobs and files older than 7 days
-python manage.py cleanup_old_jobs --days 1
-```
