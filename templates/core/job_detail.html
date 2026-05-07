@@ -21,6 +21,10 @@
               <i class="ri-image-line"></i>
             {% elif job.job_type == 'image_to_gif' or job.job_type == 'video_to_gif' %}
               <i class="ri-magic-line"></i>
+            {% elif job.job_type == 'convert_format' %}
+              <i class="ri-swap-line"></i>
+            {% elif job.job_type == 'batch_convert' %}
+              <i class="ri-folders-line"></i>
             {% else %}
               <i class="ri-video-line"></i>
             {% endif %}
@@ -95,7 +99,25 @@
     {# ── Result ── #}
     {% if output_url %}
 
-      {% if job.job_type == 'resize_image' %}
+      {% if job.job_type == 'convert_format' %}
+      <div class="card p-4">
+        <div class="result-header">
+          <div>
+            <span class="result-label"><i class="ri-swap-line"></i> Imagem convertida</span>
+            {% if job.job_params.target_format %}
+            <span class="spill spill-pending ms-2">→ .{{ job.job_params.target_format|lower }}</span>
+            {% endif %}
+          </div>
+          <a href="{{ output_url }}" download class="btn btn-primary btn-sm px-3">
+            <i class="ri-download-line"></i> Baixar
+          </a>
+        </div>
+        <div class="result-preview">
+          <img src="{{ output_url }}" class="img-fluid rounded" alt="Imagem convertida">
+        </div>
+      </div>
+
+      {% elif job.job_type == 'resize_image' %}
       <div class="card p-4">
         <div class="result-header">
           <span class="result-label"><i class="ri-image-line"></i> Imagem reduzida</span>
@@ -121,6 +143,27 @@
             <source src="{{ output_url }}" type="video/mp4">
           </video>
         </div>
+      </div>
+
+      {% elif job.job_type == 'batch_convert' %}
+      <div class="card p-4">
+        <div class="result-header">
+          <div>
+            <span class="result-label"><i class="ri-folders-line"></i> Imagens convertidas</span>
+            {% if job.job_params.target_format %}
+            <span class="spill spill-pending ms-2">→ .{{ job.job_params.target_format|lower }}</span>
+            {% endif %}
+          </div>
+          <a href="{{ output_url }}" download="converted.zip" class="btn btn-primary btn-sm px-3">
+            <i class="ri-file-zip-line"></i> Baixar .zip
+          </a>
+        </div>
+        {% if job.frame_count %}
+        <p class="batch-note">
+          <i class="ri-checkbox-circle-line"></i>
+          {{ job.frame_count }} imagem{{ job.frame_count|pluralize:"ns" }} convertida{{ job.frame_count|pluralize:"s" }} com sucesso.
+        </p>
+        {% endif %}
       </div>
 
       {% elif job.job_type == 'image_to_gif' or job.job_type == 'video_to_gif' %}
@@ -323,6 +366,16 @@
   .frames-note {
     font-size: .78rem;
     color: var(--c-text-3);
+    margin: .75rem 0 0;
+  }
+
+  .batch-note {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .85rem;
+    color: var(--c-success);
+    font-weight: 500;
     margin: .75rem 0 0;
   }
 </style>

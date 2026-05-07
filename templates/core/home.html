@@ -216,9 +216,16 @@
 
   .bento-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: .9rem;
   }
+
+  .bcard:nth-child(1),
+  .bcard:nth-child(2),
+  .bcard:nth-child(3) { grid-column: span 2; }
+
+  .bcard:nth-child(4),
+  .bcard:nth-child(5) { grid-column: span 3; }
 
   /* Double-bezel card */
   .bcard {
@@ -476,17 +483,14 @@
 
   /* ── Responsive ── */
   @media (max-width: 767px) {
-    .bento-grid {
-      grid-template-columns: 1fr 1fr;
-    }
-    .steps-grid {
-      grid-template-columns: 1fr;
-      gap: 2.5rem;
-    }
+    .bento-grid { grid-template-columns: 1fr 1fr; }
+    .bcard:nth-child(1), .bcard:nth-child(2), .bcard:nth-child(3),
+    .bcard:nth-child(4), .bcard:nth-child(5) { grid-column: span 1; }
+    .steps-grid { grid-template-columns: 1fr; gap: 2.5rem; }
     .cta-core { padding: 3rem 1.5rem; }
   }
 
-  @media (max-width: 500px) {
+  @media (max-width: 480px) {
     .bento-grid { grid-template-columns: 1fr; }
   }
 </style>
@@ -577,6 +581,19 @@
         <div class="bcard-stat">
           <span class="stat-n">GIF</span>
           <span class="stat-l">imagem ou vídeo</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bcard reveal" style="transition-delay:.4s">
+      <div class="bcard-inner">
+        <div class="bcard-num">05</div>
+        <div class="bcard-icon"><i class="ri-folders-line"></i></div>
+        <h3>Conversão em lote</h3>
+        <p>Converta até 100 imagens de uma vez para WEBP, JPEG, PNG, GIF, BMP ou TIFF. O resultado sai como um .zip pronto para baixar.</p>
+        <div class="bcard-stat">
+          <span class="stat-n">100</span>
+          <span class="stat-l">imagens por lote</span>
         </div>
       </div>
     </div>

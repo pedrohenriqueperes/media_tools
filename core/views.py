@@ -41,6 +41,8 @@ def submit_job(request):
                     for k in ('fps', 'start', 'duration', 'width')
                     if request.POST.get(k)
                 }
+            elif job.job_type == 'convert_format':
+                job.job_params = {'target_format': request.POST.get('target_format', 'WEBP').upper()}
             job.save()
             process_job_async(job.pk)
             if is_ajax:
@@ -53,7 +55,11 @@ def submit_job(request):
 
     else:
         form = MediaJobForm()
-    return render(request, 'core/submit.html', {'form': form})
+    convert_formats = [
+        ('WEBP', 'Web'), ('JPEG', 'Foto'), ('PNG', 'Transp.'),
+        ('GIF', 'GIF'), ('BMP', 'Bitmap'), ('TIFF', 'Alta res.'),
+    ]
+    return render(request, 'core/submit.html', {'form': form, 'convert_formats': convert_formats})
 
 
 @login_required
@@ -83,6 +89,73 @@ def job_detail(request, pk):
 def job_status(request, pk):
     job = get_object_or_404(MediaJob, pk=pk, user=request.user)
     return JsonResponse({'status': job.status})
+
+
+BATCH_MAX = 100
+BATCH_IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff', '.gif'}
+BATCH_TARGET_FORMATS = {'JPEG', 'PNG', 'WEBP', 'BMP', 'TIFF', 'GIF'}
+
+
+@login_required
+def submit_batch(request):
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    if request.method == 'POST':
+        files = request.FILES.getlist('files')
+        target_format = request.POST.get('target_format', 'WEBP').upper()
+
+        def err(msg):
+            if is_ajax:
+                return JsonResponse({'errors': {'__all__': [{'message': msg}]}}, status=400)
+            messages.error(request, msg)
+            return render(request, 'core/submit_batch.html',
+                          {'target_format': target_format})
+
+        if not files:
+            return err('Selecione ao menos uma imagem.')
+        if len(files) > BATCH_MAX:
+            return err(f'Máximo de {BATCH_MAX} imagens por lote.')
+        if target_format not in BATCH_TARGET_FORMATS:
+            return err('Formato de destino inválido.')
+        for f in files:
+            if Path(f.name).suffix.lower() not in BATCH_IMAGE_EXTS:
+                return err(f'"{f.name}" não é uma imagem suportada.')
+
+        total_size = sum(f.size for f in files)
+
+        job = MediaJob.objects.create(
+            user=request.user,
+            job_type='batch_convert',
+            input_size=total_size,
+            job_params={'target_format': target_format, 'file_count': len(files)},
+        )
+
+        input_dir = Path(settings.MEDIA_ROOT) / 'uploads' / f'batch_{job.pk}'
+        input_dir.mkdir(parents=True, exist_ok=True)
+        for f in files:
+            dest = input_dir / Path(f.name).name
+            with open(dest, 'wb') as out:
+                for chunk in f.chunks():
+                    out.write(chunk)
+
+        process_job_async(job.pk)
+
+        if is_ajax:
+            return JsonResponse({'job_pk': job.pk})
+        return redirect('job_detail', pk=job.pk)
+
+    formats = [
+        ('WEBP',  'Web'),
+        ('JPEG',  'Foto'),
+        ('PNG',   'Transparência'),
+        ('GIF',   'Animação'),
+        ('BMP',   'Bitmap'),
+        ('TIFF',  'Alta res.'),
+    ]
+    return render(request, 'core/submit_batch.html', {
+        'formats': formats,
+        'target_format': request.POST.get('target_format', 'WEBP'),
+    })
 
 
 @login_required

@@ -21,12 +21,34 @@
           <label class="form-label">Tipo de processamento</label>
           <select name="job_type" id="id_job_type" class="form-select">
             <option value="">Selecione...</option>
-            <option value="resize_image">Redução de imagem</option>
-            <option value="resize_video">Compressão de vídeo</option>
-            <option value="frames">Extração de frames</option>
-            <option value="image_to_gif">Imagem para GIF</option>
-            <option value="video_to_gif">Vídeo para GIF</option>
+            <optgroup label="Imagem">
+              <option value="resize_image">Redução de tamanho</option>
+              <option value="convert_format">Converter formato</option>
+              <option value="image_to_gif">Converter para GIF</option>
+            </optgroup>
+            <optgroup label="Vídeo">
+              <option value="resize_video">Comprimir vídeo</option>
+              <option value="frames">Extrair frames</option>
+              <option value="video_to_gif">Converter para GIF</option>
+            </optgroup>
           </select>
+        </div>
+
+        {# Seletor de formato (só para convert_format) #}
+        <div id="format-params" class="gif-params-box d-none mb-4">
+          <p class="gif-params-title"><i class="ri-swap-line"></i> Formato de destino</p>
+          <div class="fmt-grid">
+            {% for fmt, label in convert_formats %}
+            <label class="fmt-opt">
+              <input type="radio" name="target_format" value="{{ fmt }}"
+                     {% if forloop.first %}checked{% endif %}>
+              <span class="fmt-btn">
+                <span class="fmt-ext">.{{ fmt|lower }}</span>
+                <span class="fmt-name">{{ label }}</span>
+              </span>
+            </label>
+            {% endfor %}
+          </div>
         </div>
 
         {# Parâmetros GIF (só para video_to_gif) #}
@@ -209,6 +231,45 @@
   }
   .progress-fill.processing { background: var(--c-warning); }
 
+  /* Format grid */
+  .fmt-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: .5rem;
+  }
+  .fmt-opt input { display: none; }
+  .fmt-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .15rem;
+    padding: .6rem .4rem;
+    border-radius: .65rem;
+    border: 1.5px solid rgba(0,0,0,.1);
+    background: #fff;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    text-align: center;
+  }
+  .fmt-opt input:checked + .fmt-btn {
+    border-color: var(--c-accent);
+    background: rgba(124,58,237,.05);
+  }
+  .fmt-ext {
+    font-size: .75rem;
+    font-weight: 800;
+    color: var(--c-text);
+    letter-spacing: -.01em;
+  }
+  .fmt-name {
+    font-size: .6rem;
+    font-weight: 500;
+    color: var(--c-text-3);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  @media (max-width: 500px) { .fmt-grid { grid-template-columns: repeat(3, 1fr); } }
+
   /* GIF params */
   .gif-params-box {
     background: rgba(124,58,237,.05);
@@ -237,11 +298,13 @@
 
 {% block extra_js %}
 <script>
-// Show/hide GIF params
-const jobTypeSel = document.getElementById('id_job_type');
-const gifParams  = document.getElementById('gif-params');
+// Show/hide conditional panels
+const jobTypeSel  = document.getElementById('id_job_type');
+const gifParams   = document.getElementById('gif-params');
+const fmtParams   = document.getElementById('format-params');
 jobTypeSel.addEventListener('change', () => {
   gifParams.classList.toggle('d-none', jobTypeSel.value !== 'video_to_gif');
+  fmtParams.classList.toggle('d-none', jobTypeSel.value !== 'convert_format');
 });
 
 const dz        = document.getElementById('drop-zone');

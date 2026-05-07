@@ -32,7 +32,7 @@ class MediaJobForm(forms.ModelForm):
             raise forms.ValidationError(f'Arquivo muito grande. Limite: {MAX_UPLOAD_MB} MB.')
 
         ext = Path(f.name).suffix.lower()
-        if job_type in ('resize_image', 'image_to_gif') and ext not in IMAGE_EXTS:
+        if job_type in ('resize_image', 'image_to_gif', 'convert_format') and ext not in IMAGE_EXTS:
             raise forms.ValidationError('Para este tipo, envie uma imagem (.jpg, .png, .webp, .bmp).')
         if job_type in ('resize_video', 'frames', 'video_to_gif') and ext not in VIDEO_EXTS:
             raise forms.ValidationError('Para este tipo, envie um vídeo (.mp4, .mov, .avi, .mkv).')

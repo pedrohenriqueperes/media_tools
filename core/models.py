@@ -7,8 +7,10 @@ class MediaJob(models.Model):
         ('frames', 'Extração de Frames'),
         ('resize_image', 'Redução de Imagem'),
         ('resize_video', 'Redução de Vídeo'),
+        ('convert_format', 'Converter Formato de Imagem'),
         ('image_to_gif', 'Imagem para GIF'),
         ('video_to_gif', 'Vídeo para GIF'),
+        ('batch_convert', 'Conversão em Lote'),
     ]
     STATUS_CHOICES = [
         ('pending', 'Aguardando'),
@@ -20,7 +22,7 @@ class MediaJob(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='jobs')
     job_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    input_file = models.FileField(upload_to='uploads/')
+    input_file = models.FileField(upload_to='uploads/', null=True, blank=True)
     output_path = models.CharField(max_length=500, blank=True)
     input_size = models.PositiveBigIntegerField(null=True, blank=True)
     output_size = models.PositiveBigIntegerField(null=True, blank=True)

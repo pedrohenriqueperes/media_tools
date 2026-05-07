@@ -11,6 +11,9 @@
       <i class="ri-delete-bin-line"></i> Limpar tudo
     </button>
     {% endif %}
+    <a href="{% url 'submit_batch' %}" class="btn btn-outline-secondary">
+      <i class="ri-folders-line"></i> Lote
+    </a>
     <a href="{% url 'submit_job' %}" class="btn btn-primary">
       <i class="ri-add-line"></i> Novo job
     </a>
@@ -31,8 +34,12 @@
                   <i class="ri-film-line"></i>
                 {% elif job.job_type == 'resize_image' %}
                   <i class="ri-image-line"></i>
+                {% elif job.job_type == 'convert_format' %}
+                  <i class="ri-swap-line"></i>
                 {% elif job.job_type == 'image_to_gif' or job.job_type == 'video_to_gif' %}
                   <i class="ri-magic-line"></i>
+                {% elif job.job_type == 'batch_convert' %}
+                  <i class="ri-folders-line"></i>
                 {% else %}
                   <i class="ri-video-line"></i>
                 {% endif %}

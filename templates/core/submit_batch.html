@@ -1,0 +1,472 @@
+{% extends 'base.html' %}
+{% block title %}Conversão em Lote — MediaTools{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
+
+{% block content %}
+<a href="{% url 'dashboard' %}" class="back-link">
+  <i class="ri-arrow-left-line"></i> Dashboard
+</a>
+
+<div class="row justify-content-center">
+  <div class="col-12 col-md-9 col-lg-7">
+
+    <div class="card p-4">
+      <h1 class="submit-title">Conversão em lote</h1>
+      <p class="submit-sub">Converta até 100 imagens de uma vez para o formato escolhido. O resultado sai em um arquivo .zip.</p>
+
+      <form id="batch-form" method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        {# Formato alvo #}
+        <div class="mb-4">
+          <label class="form-label">Converter para</label>
+          <div class="fmt-grid">
+            {% for fmt, label in formats %}
+            <label class="fmt-opt">
+              <input type="radio" name="target_format" value="{{ fmt }}"
+                     {% if forloop.first or target_format == fmt %}checked{% endif %}>
+              <span class="fmt-btn">
+                <span class="fmt-ext">.{{ fmt|lower }}</span>
+                <span class="fmt-name">{{ label }}</span>
+              </span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        {# Multi-file dropzone #}
+        <div class="mb-4">
+          <label class="form-label">Imagens <span id="file-count-label" class="file-count-badge d-none"></span></label>
+          <div id="drop-zone" class="drop-zone">
+            <input type="file" name="files" id="file-input"
+                   multiple accept=".jpg,.jpeg,.png,.webp,.bmp,.tiff,.gif"
+                   class="position-absolute top-0 start-0 w-100 h-100"
+                   style="opacity:0;cursor:pointer;z-index:2">
+            <div id="dz-idle" class="dz-content">
+              <div class="dz-icon"><i class="ri-image-2-line"></i></div>
+              <p class="dz-label">Arraste as imagens aqui</p>
+              <p class="dz-hint">ou clique para selecionar · JPG, PNG, WEBP, BMP, TIFF, GIF · máx. 100 arquivos</p>
+            </div>
+            <div id="dz-selected" class="dz-content d-none">
+              <div class="dz-icon dz-icon--ok"><i class="ri-checkbox-circle-line"></i></div>
+              <p class="dz-label" id="dz-count-label"></p>
+              <p class="dz-hint" id="dz-size-label"></p>
+            </div>
+          </div>
+          <button type="button" id="clear-btn" class="clear-file-btn d-none">
+            <i class="ri-close-line"></i> Remover todos
+          </button>
+        </div>
+
+        {# File list #}
+        <div id="file-list" class="file-list d-none mb-4">
+          <div class="file-list-header">
+            <span class="file-list-title">Arquivos selecionados</span>
+            <span id="file-list-total"></span>
+          </div>
+          <ul id="file-list-ul" class="file-list-ul"></ul>
+        </div>
+
+        <div id="form-error" class="form-err d-none"></div>
+
+        <div id="progress-section" class="progress-wrap d-none">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span id="progress-label" class="progress-lbl">Enviando...</span>
+            <span id="progress-pct" class="progress-pct">0%</span>
+          </div>
+          <div class="progress-track">
+            <div id="progress-bar" class="progress-fill" style="width:0%"></div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-3">
+          <button type="submit" id="submit-btn" class="btn btn-primary flex-grow-1" disabled>
+            <i class="ri-magic-line"></i>
+            <span id="submit-label">Selecione imagens para continuar</span>
+          </button>
+          <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .submit-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -.025em;
+    margin: 0 0 .25rem;
+  }
+  .submit-sub {
+    font-size: .85rem;
+    color: var(--c-text-2);
+    margin: 0 0 1.75rem;
+  }
+
+  /* Format grid */
+  .fmt-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: .5rem;
+  }
+
+  .fmt-opt input { display: none; }
+
+  .fmt-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .15rem;
+    padding: .6rem .4rem;
+    border-radius: .65rem;
+    border: 1.5px solid rgba(0,0,0,.1);
+    background: #fff;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    text-align: center;
+  }
+
+  .fmt-opt input:checked + .fmt-btn {
+    border-color: var(--c-accent);
+    background: rgba(124,58,237,.05);
+  }
+
+  .fmt-ext {
+    font-size: .75rem;
+    font-weight: 800;
+    color: var(--c-text);
+    letter-spacing: -.01em;
+  }
+
+  .fmt-name {
+    font-size: .6rem;
+    font-weight: 500;
+    color: var(--c-text-3);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+
+  /* Drop zone (reuse from submit.html) */
+  .drop-zone {
+    position: relative;
+    border: 1.5px dashed rgba(0,0,0,.15);
+    border-radius: .875rem;
+    background: #fafafa;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  .drop-zone.drag-over {
+    border-color: var(--c-accent);
+    background: rgba(124,58,237,.04);
+  }
+  .drop-zone.has-file {
+    border-color: var(--c-success);
+    background: var(--c-success-bg);
+    border-style: solid;
+  }
+  .dz-content { pointer-events: none; }
+  .dz-icon {
+    width: 48px; height: 48px;
+    border-radius: .875rem;
+    background: rgba(0,0,0,.05);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    color: var(--c-text-3);
+    margin: 0 auto .875rem;
+  }
+  .dz-icon--ok { background: var(--c-success-bg); color: var(--c-success); }
+  .dz-label {
+    font-size: .9rem; font-weight: 700; color: var(--c-text);
+    margin: 0 0 .25rem; letter-spacing: -.01em;
+  }
+  .dz-hint { font-size: .78rem; color: var(--c-text-3); margin: 0; }
+
+  .clear-file-btn {
+    display: inline-flex; align-items: center; gap: .3rem;
+    margin-top: .6rem;
+    background: none; border: none; cursor: pointer;
+    font-size: .78rem; font-weight: 500;
+    color: var(--c-danger); padding: 0;
+    transition: opacity .15s;
+  }
+  .clear-file-btn:hover { opacity: .7; }
+
+  /* File list */
+  .file-list {
+    border: 1px solid var(--c-border);
+    border-radius: .875rem;
+    overflow: hidden;
+  }
+  .file-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .6rem 1rem;
+    background: var(--c-muted-bg);
+    border-bottom: 1px solid var(--c-border);
+  }
+  .file-list-title {
+    font-size: .75rem;
+    font-weight: 700;
+    color: var(--c-text-2);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+  #file-list-total {
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--c-text-3);
+  }
+  .file-list-ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .5rem 1rem;
+    border-bottom: 1px solid var(--c-border);
+    font-size: .82rem;
+  }
+  .file-item:last-child { border-bottom: none; }
+  .file-item-icon {
+    width: 28px; height: 28px;
+    border-radius: .4rem;
+    background: var(--c-muted-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .85rem;
+    color: var(--c-text-3);
+    flex-shrink: 0;
+  }
+  .file-item-name {
+    flex: 1;
+    font-weight: 500;
+    color: var(--c-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .file-item-size {
+    font-size: .75rem;
+    color: var(--c-text-3);
+    white-space: nowrap;
+  }
+
+  .file-count-badge {
+    background: var(--c-accent);
+    color: #fff;
+    font-size: .65rem;
+    font-weight: 700;
+    padding: .1rem .45rem;
+    border-radius: 100px;
+    letter-spacing: .02em;
+    margin-left: .35rem;
+    vertical-align: middle;
+  }
+
+  /* Progress & error */
+  .form-err {
+    background: var(--c-danger-bg); color: var(--c-danger);
+    border-radius: .65rem; padding: .65rem 1rem;
+    font-size: .85rem; font-weight: 500; margin-bottom: 1rem;
+  }
+  .progress-wrap { margin-bottom: 1rem; }
+  .progress-lbl { font-size: .8rem; color: var(--c-text-2); font-weight: 500; }
+  .progress-pct { font-size: .8rem; font-weight: 700; color: var(--c-text); }
+  .progress-track {
+    height: 5px; background: rgba(0,0,0,.07);
+    border-radius: 100px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: #111;
+    border-radius: 100px; transition: width .2s ease;
+  }
+  .progress-fill.processing { background: var(--c-warning); }
+
+  @media (max-width: 500px) {
+    .fmt-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const dz        = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const dzIdle    = document.getElementById('dz-idle');
+  const dzSel     = document.getElementById('dz-selected');
+  const dzCount   = document.getElementById('dz-count-label');
+  const dzSize    = document.getElementById('dz-size-label');
+  const clearBtn  = document.getElementById('clear-btn');
+  const fileList  = document.getElementById('file-list');
+  const fileUl    = document.getElementById('file-list-ul');
+  const listTotal = document.getElementById('file-list-total');
+  const countBadge= document.getElementById('file-count-label');
+  const submitBtn = document.getElementById('submit-btn');
+  const submitLbl = document.getElementById('submit-label');
+  const formError = document.getElementById('form-error');
+  const progressSec = document.getElementById('progress-section');
+  const progressBar = document.getElementById('progress-bar');
+  const progressPct = document.getElementById('progress-pct');
+  const progressLbl = document.getElementById('progress-label');
+  const form      = document.getElementById('batch-form');
+
+  let currentFiles = [];
+
+  function fmt(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1048576).toFixed(1) + ' MB';
+  }
+
+  function totalSize(files) {
+    return files.reduce((s, f) => s + f.size, 0);
+  }
+
+  function renderFiles(files) {
+    currentFiles = files;
+    fileUl.innerHTML = '';
+
+    if (!files.length) {
+      resetState(); return;
+    }
+
+    const total = totalSize(files);
+
+    // Dropzone feedback
+    dzIdle.classList.add('d-none');
+    dzSel.classList.remove('d-none');
+    dz.classList.add('has-file');
+    dzCount.textContent = `${files.length} imagem${files.length > 1 ? 'ns' : ''} selecionada${files.length > 1 ? 's' : ''}`;
+    dzSize.textContent  = `Total: ${fmt(total)}`;
+
+    // Badge
+    countBadge.textContent = files.length;
+    countBadge.classList.remove('d-none');
+
+    // List
+    fileList.classList.remove('d-none');
+    listTotal.textContent = fmt(total);
+    files.forEach(f => {
+      const li = document.createElement('li');
+      li.className = 'file-item';
+      li.innerHTML = `
+        <span class="file-item-icon"><i class="ri-image-line"></i></span>
+        <span class="file-item-name">${f.name}</span>
+        <span class="file-item-size">${fmt(f.size)}</span>`;
+      fileUl.appendChild(li);
+    });
+
+    clearBtn.classList.remove('d-none');
+    submitBtn.disabled = false;
+    submitLbl.textContent = `Converter ${files.length} imagem${files.length > 1 ? 'ns' : ''}`;
+  }
+
+  function resetState() {
+    dzIdle.classList.remove('d-none');
+    dzSel.classList.add('d-none');
+    dz.classList.remove('has-file');
+    fileList.classList.add('d-none');
+    clearBtn.classList.add('d-none');
+    countBadge.classList.add('d-none');
+    submitBtn.disabled = true;
+    submitLbl.textContent = 'Selecione imagens para continuar';
+    currentFiles = [];
+  }
+
+  function setFiles(fileListObj) {
+    const arr = Array.from(fileListObj);
+    renderFiles(arr);
+    // Sync with input via DataTransfer
+    const dt = new DataTransfer();
+    arr.forEach(f => dt.items.add(f));
+    fileInput.files = dt.files;
+  }
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) renderFiles(Array.from(fileInput.files));
+  });
+
+  clearBtn.addEventListener('click', () => {
+    fileInput.value = '';
+    resetState();
+  });
+
+  dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', e => { e.preventDefault(); dz.classList.remove('drag-over'); });
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('drag-over');
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length) setFiles(files);
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    formError.classList.add('d-none');
+
+    if (!currentFiles.length) {
+      formError.textContent = 'Selecione ao menos uma imagem.';
+      formError.classList.remove('d-none');
+      return;
+    }
+
+    const xhr = new XMLHttpRequest();
+    submitBtn.disabled = true;
+    progressSec.classList.remove('d-none');
+
+    xhr.upload.addEventListener('progress', ev => {
+      if (!ev.lengthComputable) return;
+      const pct = Math.round(ev.loaded / ev.total * 100);
+      progressBar.style.width = pct + '%';
+      progressPct.textContent = pct + '%';
+      if (pct === 100) {
+        progressLbl.textContent = 'Convertendo...';
+        progressBar.classList.add('processing');
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status === 200 && data.job_pk) {
+          window.location.href = '/job/' + data.job_pk + '/';
+        } else {
+          submitBtn.disabled = false;
+          progressSec.classList.add('d-none');
+          const msgs = Object.values(data.errors || {}).flat().map(e => e.message).join(' ');
+          formError.textContent = msgs || 'Erro ao enviar.';
+          formError.classList.remove('d-none');
+        }
+      } catch {
+        submitBtn.disabled = false;
+        formError.textContent = 'Erro inesperado.';
+        formError.classList.remove('d-none');
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      submitBtn.disabled = false;
+      progressSec.classList.add('d-none');
+      formError.textContent = 'Falha na conexão.';
+      formError.classList.remove('d-none');
+    });
+
+    xhr.open('POST', '{% url "submit_batch" %}');
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.send(new FormData(form));
+  });
+})();
+</script>
+{% endblock %}
