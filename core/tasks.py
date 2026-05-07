@@ -108,35 +108,56 @@ def process_job(job_pk):
             'status', 'output_path', 'input_size', 'output_size',
             'frame_count', 'error_message', 'finished_at',
         ])
-        t = threading.Timer(60, cleanup_job_files, args=[job_pk])
-        t.daemon = True
-        t.start()
 
 
-def cleanup_job_files(job_pk):
-    from .models import MediaJob
-
-    # Apaga outputs
-    output_dir = Path(settings.MEDIA_ROOT) / 'outputs' / str(job_pk)
+def _delete_job_files(job):
+    """Apaga arquivos de input e output de um job e limpa output_path."""
+    output_dir = Path(settings.MEDIA_ROOT) / 'outputs' / str(job.pk)
     if output_dir.exists():
         shutil.rmtree(output_dir)
 
-    # Apaga inputs de batch
-    batch_dir = Path(settings.MEDIA_ROOT) / 'uploads' / f'batch_{job_pk}'
+    batch_dir = Path(settings.MEDIA_ROOT) / 'uploads' / f'batch_{job.pk}'
     if batch_dir.exists():
         shutil.rmtree(batch_dir)
 
-    # Apaga input de job único
     try:
-        job = MediaJob.objects.get(pk=job_pk)
         if job.input_file and job.input_file.name:
             input_path = Path(job.input_file.path)
             if input_path.exists():
                 input_path.unlink()
-        job.output_path = ''
-        job.save(update_fields=['output_path'])
-    except MediaJob.DoesNotExist:
+    except Exception:
         pass
+
+    job.output_path = ''
+    job.save(update_fields=['output_path'])
+
+
+def cleanup_worker_loop():
+    """Thread persistente: a cada 30s apaga arquivos de jobs concluídos há mais de 60s."""
+    import time
+    from datetime import timedelta
+    from django.db import connection
+
+    while True:
+        time.sleep(30)
+        try:
+            from .models import MediaJob
+            cutoff = timezone.now() - timedelta(seconds=60)
+            jobs = MediaJob.objects.filter(
+                finished_at__lt=cutoff
+            ).exclude(output_path='')
+            for job in jobs:
+                try:
+                    _delete_job_files(job)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        finally:
+            try:
+                connection.close()
+            except Exception:
+                pass
 
 
 def _zip_dir(directory, zip_path, pattern='*'):

@@ -1,9 +1,6 @@
-import shutil
-from pathlib import Path
 from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from django.conf import settings
 from core.models import MediaJob
 
 
@@ -19,14 +16,9 @@ class Command(BaseCommand):
         old_jobs = MediaJob.objects.filter(created_at__lt=cutoff)
         removed = 0
         for job in old_jobs:
-            output_dir = Path(settings.MEDIA_ROOT) / 'outputs' / str(job.pk)
-            if output_dir.exists():
-                shutil.rmtree(output_dir)
-            batch_dir = Path(settings.MEDIA_ROOT) / 'uploads' / f'batch_{job.pk}'
-            if batch_dir.exists():
-                shutil.rmtree(batch_dir)
+            from core.tasks import _delete_job_files
             try:
-                job.input_file.delete(save=False)
+                _delete_job_files(job)
             except Exception:
                 pass
             job.delete()
