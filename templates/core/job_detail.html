@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% block title %}Job #{{ job.pk }} — MediaTools{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-10 col-lg-8">
+    <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-secondary mb-3">
+      <i class="bi bi-arrow-left"></i> Voltar
+    </a>
+
+    {# ── Status card ── #}
+    <div class="card p-4 mb-4">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+          <h5 class="fw-bold mb-1">{{ job.get_job_type_display }}</h5>
+          <p class="text-muted small mb-0">Job #{{ job.pk }} &mdash; {{ job.created_at|date:"d/m/Y H:i" }}</p>
+        </div>
+        <span id="status-badge" class="badge fs-6
+          {% if job.status == 'done' %}bg-success
+          {% elif job.status == 'processing' %}bg-warning text-dark
+          {% elif job.status == 'error' %}bg-danger
+          {% else %}bg-secondary{% endif %}">
+          {{ job.get_status_display }}
+        </span>
+      </div>
+
+      {# Métricas #}
+      {% if job.input_size %}
+      <hr class="my-3">
+      <div class="row g-3 text-center">
+        <div class="col-4">
+          <p class="text-muted small mb-0">Original</p>
+          <p class="fw-bold mb-0">{{ job.input_size|filesizeformat }}</p>
+        </div>
+        {% if job.output_size %}
+        <div class="col-4">
+          <p class="text-muted small mb-0">Resultado</p>
+          <p class="fw-bold mb-0">{{ job.output_size|filesizeformat }}</p>
+        </div>
+        {% if job.savings_pct is not None %}
+        <div class="col-4">
+          <p class="text-muted small mb-0">Redução</p>
+          <p class="fw-bold mb-0 {% if job.savings_pct > 0 %}text-success{% else %}text-muted{% endif %}">
+            {% if job.savings_pct > 0 %}&minus;{% endif %}{{ job.savings_pct }}%
+          </p>
+        </div>
+        {% endif %}
+        {% elif job.frame_count %}
+        <div class="col-4">
+          <p class="text-muted small mb-0">Frames</p>
+          <p class="fw-bold mb-0">{{ job.frame_count }}</p>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if job.error_message %}
+        <div class="alert alert-danger mt-3 mb-0">
+          <strong>Erro:</strong> {{ job.error_message }}
+        </div>
+      {% endif %}
+    </div>
+
+    {# ── Spinner (processando) ── #}
+    {% if job.status == 'pending' or job.status == 'processing' %}
+    <div id="processing-card" class="card p-4 text-center">
+      <div class="spinner-border text-primary mb-3" role="status" style="width:3rem;height:3rem;margin:0 auto"></div>
+      <p class="fw-semibold mb-1">Processando seu arquivo...</p>
+      <p class="text-muted small mb-0">A página será atualizada automaticamente.</p>
+    </div>
+    {% endif %}
+
+    {# ── Resultado (done) ── #}
+    {% if output_url %}
+
+      {% if job.job_type == 'resize_image' %}
+      <div class="card p-4">
+        <h6 class="fw-semibold mb-3"><i class="bi bi-image"></i> Imagem reduzida</h6>
+        <img src="{{ output_url }}" class="img-fluid rounded mb-3" alt="Imagem processada">
+        <a href="{{ output_url }}" download class="btn btn-primary w-100">
+          <i class="bi bi-download"></i> Baixar imagem
+        </a>
+      </div>
+
+      {% elif job.job_type == 'resize_video' %}
+      <div class="card p-4">
+        <h6 class="fw-semibold mb-3"><i class="bi bi-camera-video"></i> Vídeo comprimido</h6>
+        <video controls class="w-100 rounded mb-3" style="max-height:420px;background:#000">
+          <source src="{{ output_url }}" type="video/mp4">
+        </video>
+        <a href="{{ output_url }}" download class="btn btn-primary w-100">
+          <i class="bi bi-download"></i> Baixar vídeo
+        </a>
+      </div>
+
+      {% elif job.job_type == 'frames' %}
+      <div class="card p-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="fw-semibold mb-0"><i class="bi bi-collection"></i> Frames extraídos</h6>
+          <a href="{{ output_url }}" download="frames.zip" class="btn btn-primary btn-sm">
+            <i class="bi bi-file-zip"></i> Baixar .zip
+          </a>
+        </div>
+
+        {% if frame_urls %}
+        <div class="row g-2">
+          {% for url in frame_urls %}
+          <div class="col-6 col-sm-4 col-md-3">
+            <a href="{{ url }}" target="_blank">
+              <img src="{{ url }}" class="img-fluid rounded w-100"
+                   style="aspect-ratio:16/9;object-fit:cover" alt="Frame">
+            </a>
+          </div>
+          {% endfor %}
+        </div>
+        {% if job.frame_count and job.frame_count > 30 %}
+        <p class="text-muted small mt-2 mb-0">
+          Mostrando 30 de {{ job.frame_count }} frames. Baixe o .zip para ver todos.
+        </p>
+        {% endif %}
+        {% endif %}
+      </div>
+      {% endif %}
+
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if job.status == 'pending' or job.status == 'processing' %}
+<script>
+(function poll() {
+  fetch('{% url "job_status" job.pk %}')
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'done' || data.status === 'error') {
+        window.location.reload();
+      } else {
+        setTimeout(poll, 2500);
+      }
+    })
+    .catch(() => setTimeout(poll, 5000));
+})();
+</script>
+{% endif %}
+{% endblock %}

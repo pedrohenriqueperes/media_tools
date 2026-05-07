@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard — MediaTools{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="mb-0 fw-bold">Meus Jobs</h4>
+  <a href="{% url 'submit_job' %}" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> Novo
+  </a>
+</div>
+
+{% if page.object_list %}
+  <div class="row g-3 mb-4">
+    {% for job in page.object_list %}
+    <div class="col-12 col-sm-6 col-xl-4">
+      <a href="{% url 'job_detail' job.pk %}" class="text-decoration-none text-dark">
+        <div class="card h-100 p-3 hover-shadow" style="transition:box-shadow .15s">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <span class="fw-semibold">{{ job.get_job_type_display }}</span>
+            {% if job.status == 'done' %}
+              <span class="badge bg-success">Concluído</span>
+            {% elif job.status == 'processing' %}
+              <span class="badge bg-warning text-dark">Processando</span>
+            {% elif job.status == 'error' %}
+              <span class="badge bg-danger">Erro</span>
+            {% else %}
+              <span class="badge bg-secondary">Aguardando</span>
+            {% endif %}
+          </div>
+
+          <p class="text-muted small mb-2">{{ job.created_at|date:"d/m/Y H:i" }}</p>
+
+          {% if job.input_size %}
+          <div class="d-flex gap-3 small mt-auto pt-2 border-top">
+            <span class="text-muted">
+              <i class="bi bi-upload text-muted"></i> {{ job.input_size|filesizeformat }}
+            </span>
+            {% if job.output_size %}
+            <span class="text-muted">
+              <i class="bi bi-download text-muted"></i> {{ job.output_size|filesizeformat }}
+            </span>
+            {% if job.savings_pct is not None and job.savings_pct > 0 %}
+            <span class="text-success fw-semibold ms-auto">
+              <i class="bi bi-arrow-down-circle-fill"></i> {{ job.savings_pct }}% menor
+            </span>
+            {% endif %}
+            {% endif %}
+            {% if job.frame_count %}
+            <span class="text-muted">
+              <i class="bi bi-collection"></i> {{ job.frame_count }} frames
+            </span>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# Paginação #}
+  {% if page.has_other_pages %}
+  <nav aria-label="Paginação">
+    <ul class="pagination justify-content-center mb-0">
+      {% if page.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page.previous_page_number }}">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-left"></i></span></li>
+      {% endif %}
+
+      {% for num in page.paginator.page_range %}
+        {% if page.number == num %}
+          <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+        {% else %}
+          <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+        {% endif %}
+      {% endfor %}
+
+      {% if page.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ page.next_page_number }}">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+      {% else %}
+        <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-right"></i></span></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+
+{% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+    Nenhum job ainda. <a href="{% url 'submit_job' %}">Envie um arquivo</a>.
+  </div>
+{% endif %}
+{% endblock %}

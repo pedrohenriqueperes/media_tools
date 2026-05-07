@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% block title %}Enviar Arquivo — MediaTools{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card p-4">
+      <h5 class="fw-bold mb-4"><i class="bi bi-upload"></i> Enviar Arquivo</h5>
+
+      <form id="upload-form" method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        {# Tipo de processamento #}
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Tipo de processamento</label>
+          <select name="job_type" id="id_job_type" class="form-select">
+            <option value="">Selecione...</option>
+            <option value="resize_image">Redução de Imagem</option>
+            <option value="resize_video">Redução de Vídeo</option>
+            <option value="frames">Extração de Frames</option>
+          </select>
+        </div>
+
+        {# Drop zone #}
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Arquivo</label>
+          <div id="drop-zone"
+               class="border border-2 rounded-3 p-5 text-center position-relative"
+               style="border-style:dashed!important;border-color:#dee2e6!important;cursor:pointer;transition:background .15s,border-color .15s;">
+            <i class="bi bi-cloud-upload fs-1 text-muted d-block mb-2"></i>
+            <p class="mb-1 fw-semibold">Arraste o arquivo aqui</p>
+            <p class="text-muted small mb-0">ou clique para selecionar &mdash; máx. 200 MB</p>
+            <input type="file" name="input_file" id="file-input"
+                   class="position-absolute top-0 start-0 w-100 h-100 opacity-0"
+                   style="cursor:pointer">
+          </div>
+
+          {# File info #}
+          <div id="file-info" class="mt-2 d-none">
+            <div class="d-flex align-items-center gap-2 p-2 bg-light rounded">
+              <i class="bi bi-file-earmark text-primary"></i>
+              <span id="file-name" class="small fw-semibold text-truncate flex-grow-1"></span>
+              <span id="file-size" class="small text-muted text-nowrap"></span>
+              <button type="button" id="clear-file" class="btn btn-sm btn-link text-danger p-0">
+                <i class="bi bi-x-lg"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {# Erro de validação #}
+        <div id="form-error" class="alert alert-danger d-none"></div>
+
+        {# Progress #}
+        <div id="progress-section" class="mb-3 d-none">
+          <div class="d-flex justify-content-between small mb-1">
+            <span class="text-muted" id="progress-label">Enviando...</span>
+            <span id="progress-pct" class="fw-semibold">0%</span>
+          </div>
+          <div class="progress" style="height:8px">
+            <div id="progress-bar"
+                 class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                 style="width:0%;transition:width .2s"></div>
+          </div>
+        </div>
+
+        <div class="d-grid gap-2 d-sm-flex">
+          <button type="submit" id="submit-btn" class="btn btn-primary flex-grow-1">
+            <i class="bi bi-send"></i> Processar
+          </button>
+          <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const dropZone   = document.getElementById('drop-zone');
+const fileInput  = document.getElementById('file-input');
+const fileInfo   = document.getElementById('file-info');
+const fileName   = document.getElementById('file-name');
+const fileSize   = document.getElementById('file-size');
+const clearBtn   = document.getElementById('clear-file');
+const progressSec = document.getElementById('progress-section');
+const progressBar = document.getElementById('progress-bar');
+const progressPct = document.getElementById('progress-pct');
+const progressLbl = document.getElementById('progress-label');
+const submitBtn  = document.getElementById('submit-btn');
+const formError  = document.getElementById('form-error');
+const form       = document.getElementById('upload-form');
+
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function showFile(file) {
+  fileName.textContent = file.name;
+  fileSize.textContent = fmtSize(file.size);
+  fileInfo.classList.remove('d-none');
+  dropZone.style.borderColor = '#0d6efd !important';
+}
+
+function clearFile() {
+  fileInput.value = '';
+  fileInfo.classList.add('d-none');
+  fileName.textContent = '';
+  fileSize.textContent = '';
+  dropZone.style.borderColor = '';
+}
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) showFile(fileInput.files[0]);
+});
+
+clearBtn.addEventListener('click', clearFile);
+
+['dragover', 'dragenter'].forEach(e => {
+  dropZone.addEventListener(e, ev => {
+    ev.preventDefault();
+    dropZone.style.background = '#e9f0ff';
+    dropZone.style.borderColor = '#0d6efd';
+  });
+});
+['dragleave', 'drop'].forEach(e => {
+  dropZone.addEventListener(e, ev => {
+    ev.preventDefault();
+    dropZone.style.background = '';
+    if (e === 'drop') {
+      const file = ev.dataTransfer.files[0];
+      if (file) {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        fileInput.files = dt.files;
+        showFile(file);
+      }
+    }
+  });
+});
+
+form.addEventListener('submit', function(e) {
+  e.preventDefault();
+  formError.classList.add('d-none');
+
+  if (!fileInput.files[0]) {
+    formError.textContent = 'Selecione um arquivo.';
+    formError.classList.remove('d-none');
+    return;
+  }
+
+  const formData = new FormData(form);
+  const xhr = new XMLHttpRequest();
+
+  submitBtn.disabled = true;
+  progressSec.classList.remove('d-none');
+
+  xhr.upload.addEventListener('progress', ev => {
+    if (!ev.lengthComputable) return;
+    const pct = Math.round(ev.loaded / ev.total * 100);
+    progressBar.style.width = pct + '%';
+    progressPct.textContent = pct + '%';
+    if (pct === 100) {
+      progressLbl.textContent = 'Processando...';
+      progressBar.classList.add('bg-warning');
+    }
+  });
+
+  xhr.addEventListener('load', () => {
+    try {
+      const data = JSON.parse(xhr.responseText);
+      if (xhr.status === 200 && data.job_pk) {
+        window.location.href = '/job/' + data.job_pk + '/';
+      } else {
+        submitBtn.disabled = false;
+        progressSec.classList.add('d-none');
+        const msgs = Object.values(data.errors || {}).flat().map(e => e.message).join(' ');
+        formError.textContent = msgs || 'Erro ao enviar.';
+        formError.classList.remove('d-none');
+      }
+    } catch {
+      submitBtn.disabled = false;
+      formError.textContent = 'Erro inesperado.';
+      formError.classList.remove('d-none');
+    }
+  });
+
+  xhr.addEventListener('error', () => {
+    submitBtn.disabled = false;
+    progressSec.classList.add('d-none');
+    formError.textContent = 'Falha na conexão.';
+    formError.classList.remove('d-none');
+  });
+
+  xhr.open('POST', '{% url "submit_job" %}');
+  xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+  xhr.send(formData);
+});
+</script>
+{% endblock %}
