@@ -1,34 +1,112 @@
 {% extends 'base.html' %}
-{% block title %}Cadastrar — MediaTools{% endblock %}
+{% block title %}Criar conta — MediaTools{% endblock %}
+{% block main_class %}page-inner auth-page d-flex align-items-center justify-content-center{% endblock %}
+{% block footer %}{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-12 col-sm-8 col-md-5 col-lg-4">
-    <div class="card p-4">
-      <h5 class="fw-bold mb-4 text-center">Criar conta</h5>
-      <form method="post">
-        {% csrf_token %}
-        {% for field in form %}
-          <div class="mb-3">
-            <label class="form-label fw-semibold">{{ field.label }}</label>
-            <input type="{{ field.field.widget.input_type }}"
-                   name="{{ field.html_name }}"
-                   class="form-control {% if field.errors %}is-invalid{% endif %}"
-                   {% if field.value %}value="{{ field.value }}"{% endif %}
-                   {% if field.field.required %}required{% endif %}>
-            {% for error in field.errors %}
-              <div class="invalid-feedback">{{ error }}</div>
-            {% endfor %}
-          </div>
-        {% endfor %}
-        <div class="d-grid mb-3">
-          <button type="submit" class="btn btn-primary">Cadastrar</button>
-        </div>
-        <p class="text-center small mb-0">
-          Já tem conta? <a href="{% url 'account_login' %}">Entrar</a>
-        </p>
-      </form>
-    </div>
+<div class="auth-card">
+
+  <div class="auth-brand">
+    <span class="brand-dot"></span>
+    MediaTools
   </div>
+
+  <div class="auth-header">
+    <h1 class="auth-title">Criar conta</h1>
+    <p class="auth-sub">Preencha os dados abaixo para começar.</p>
+  </div>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% for field in form %}
+      <div class="mb-3">
+        <label class="form-label">{{ field.label }}</label>
+        <input type="{{ field.field.widget.input_type }}"
+               name="{{ field.html_name }}"
+               class="form-control {% if field.errors %}is-invalid{% endif %}"
+               {% if field.value %}value="{{ field.value }}"{% endif %}
+               {% if field.field.required %}required{% endif %}
+               autocomplete="{% if 'password' in field.html_name %}new-password{% else %}email{% endif %}">
+        {% for error in field.errors %}
+          <div class="field-err">{{ error }}</div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+
+    <button type="submit" class="btn btn-primary w-100 mt-1">Criar conta</button>
+  </form>
+
+  <p class="auth-footer">
+    Já tem conta?
+    <a href="{% url 'account_login' %}">Entrar</a>
+  </p>
+
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .auth-page {
+    min-height: 100dvh;
+    padding: 1.5rem;
+  }
+
+  .auth-card {
+    background: #fff;
+    border: 1px solid var(--c-border);
+    border-radius: 1.25rem;
+    box-shadow: var(--card-shadow);
+    padding: 2.25rem;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .auth-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    font-size: .85rem;
+    font-weight: 700;
+    color: var(--c-text);
+    letter-spacing: -.01em;
+    margin-bottom: 1.75rem;
+  }
+
+  .auth-header { margin-bottom: 1.75rem; }
+
+  .auth-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: -.03em;
+    color: var(--c-text);
+    margin: 0 0 .35rem;
+  }
+
+  .auth-sub {
+    font-size: .85rem;
+    color: var(--c-text-2);
+    margin: 0;
+  }
+
+  .field-err {
+    font-size: .78rem;
+    color: var(--c-danger);
+    margin-top: .35rem;
+    font-weight: 500;
+  }
+
+  .auth-footer {
+    text-align: center;
+    font-size: .82rem;
+    color: var(--c-text-2);
+    margin: 1.25rem 0 0;
+  }
+
+  .auth-footer a {
+    color: var(--c-text);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .auth-footer a:hover { text-decoration: underline; }
+</style>
 {% endblock %}

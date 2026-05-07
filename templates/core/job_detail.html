@@ -1,130 +1,331 @@
 {% extends 'base.html' %}
 {% block title %}Job #{{ job.pk }} — MediaTools{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-12 col-md-10 col-lg-8">
-    <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-secondary mb-3">
-      <i class="bi bi-arrow-left"></i> Voltar
-    </a>
+<a href="{% url 'dashboard' %}" class="back-link">
+  <i class="ri-arrow-left-line"></i> Dashboard
+</a>
 
-    {# ── Status card ── #}
-    <div class="card p-4 mb-4">
-      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-        <div>
-          <h5 class="fw-bold mb-1">{{ job.get_job_type_display }}</h5>
-          <p class="text-muted small mb-0">Job #{{ job.pk }} &mdash; {{ job.created_at|date:"d/m/Y H:i" }}</p>
+<div class="row justify-content-center">
+  <div class="col-12 col-md-10 col-lg-7">
+
+    {# ── Header card ── #}
+    <div class="card p-4 mb-3">
+      <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
+        <div class="d-flex align-items-center gap-3">
+          <div class="jd-icon">
+            {% if job.job_type == 'frames' %}
+              <i class="ri-film-line"></i>
+            {% elif job.job_type == 'resize_image' %}
+              <i class="ri-image-line"></i>
+            {% elif job.job_type == 'image_to_gif' or job.job_type == 'video_to_gif' %}
+              <i class="ri-magic-line"></i>
+            {% else %}
+              <i class="ri-video-line"></i>
+            {% endif %}
+          </div>
+          <div>
+            <h1 class="jd-title">{{ job.get_job_type_display }}</h1>
+            <p class="jd-meta">Job #{{ job.pk }} · {{ job.created_at|date:"d/m/Y · H:i" }}</p>
+          </div>
         </div>
-        <span id="status-badge" class="badge fs-6
-          {% if job.status == 'done' %}bg-success
-          {% elif job.status == 'processing' %}bg-warning text-dark
-          {% elif job.status == 'error' %}bg-danger
-          {% else %}bg-secondary{% endif %}">
-          {{ job.get_status_display }}
-        </span>
+        <div id="status-badge">
+          {% if job.status == 'done' %}
+            <span class="spill spill-done">Concluído</span>
+          {% elif job.status == 'processing' %}
+            <span class="spill spill-processing">Processando</span>
+          {% elif job.status == 'error' %}
+            <span class="spill spill-error">Erro</span>
+          {% else %}
+            <span class="spill spill-pending">Aguardando</span>
+          {% endif %}
+        </div>
       </div>
 
-      {# Métricas #}
+      {# Métricas ── #}
       {% if job.input_size %}
-      <hr class="my-3">
-      <div class="row g-3 text-center">
-        <div class="col-4">
-          <p class="text-muted small mb-0">Original</p>
-          <p class="fw-bold mb-0">{{ job.input_size|filesizeformat }}</p>
+      <div class="metrics-row">
+        <div class="metric-box">
+          <span class="metric-box-label">Original</span>
+          <span class="metric-box-val">{{ job.input_size|filesizeformat }}</span>
         </div>
         {% if job.output_size %}
-        <div class="col-4">
-          <p class="text-muted small mb-0">Resultado</p>
-          <p class="fw-bold mb-0">{{ job.output_size|filesizeformat }}</p>
+        <div class="metric-sep"></div>
+        <div class="metric-box">
+          <span class="metric-box-label">Resultado</span>
+          <span class="metric-box-val">{{ job.output_size|filesizeformat }}</span>
         </div>
         {% if job.savings_pct is not None %}
-        <div class="col-4">
-          <p class="text-muted small mb-0">Redução</p>
-          <p class="fw-bold mb-0 {% if job.savings_pct > 0 %}text-success{% else %}text-muted{% endif %}">
-            {% if job.savings_pct > 0 %}&minus;{% endif %}{{ job.savings_pct }}%
-          </p>
+        <div class="metric-sep"></div>
+        <div class="metric-box">
+          <span class="metric-box-label">Redução</span>
+          <span class="metric-box-val {% if job.savings_pct > 0 %}metric-box-val--green{% endif %}">
+            {% if job.savings_pct > 0 %}−{% endif %}{{ job.savings_pct }}%
+          </span>
         </div>
         {% endif %}
         {% elif job.frame_count %}
-        <div class="col-4">
-          <p class="text-muted small mb-0">Frames</p>
-          <p class="fw-bold mb-0">{{ job.frame_count }}</p>
+        <div class="metric-sep"></div>
+        <div class="metric-box">
+          <span class="metric-box-label">Frames</span>
+          <span class="metric-box-val">{{ job.frame_count }}</span>
         </div>
         {% endif %}
       </div>
       {% endif %}
 
       {% if job.error_message %}
-        <div class="alert alert-danger mt-3 mb-0">
-          <strong>Erro:</strong> {{ job.error_message }}
+        <div class="err-box mt-3">
+          <i class="ri-error-warning-line"></i>
+          {{ job.error_message }}
         </div>
       {% endif %}
     </div>
 
-    {# ── Spinner (processando) ── #}
+    {# ── Processing ── #}
     {% if job.status == 'pending' or job.status == 'processing' %}
-    <div id="processing-card" class="card p-4 text-center">
-      <div class="spinner-border text-primary mb-3" role="status" style="width:3rem;height:3rem;margin:0 auto"></div>
-      <p class="fw-semibold mb-1">Processando seu arquivo...</p>
-      <p class="text-muted small mb-0">A página será atualizada automaticamente.</p>
+    <div class="card p-4 text-center" id="processing-card">
+      <div class="processing-spinner"></div>
+      <p class="processing-label">Processando seu arquivo…</p>
+      <p class="processing-sub">A página será atualizada automaticamente.</p>
     </div>
     {% endif %}
 
-    {# ── Resultado (done) ── #}
+    {# ── Result ── #}
     {% if output_url %}
 
       {% if job.job_type == 'resize_image' %}
       <div class="card p-4">
-        <h6 class="fw-semibold mb-3"><i class="bi bi-image"></i> Imagem reduzida</h6>
-        <img src="{{ output_url }}" class="img-fluid rounded mb-3" alt="Imagem processada">
-        <a href="{{ output_url }}" download class="btn btn-primary w-100">
-          <i class="bi bi-download"></i> Baixar imagem
-        </a>
+        <div class="result-header">
+          <span class="result-label"><i class="ri-image-line"></i> Imagem reduzida</span>
+          <a href="{{ output_url }}" download class="btn btn-primary btn-sm px-3">
+            <i class="ri-download-line"></i> Baixar
+          </a>
+        </div>
+        <div class="result-preview">
+          <img src="{{ output_url }}" class="img-fluid rounded" alt="Imagem processada">
+        </div>
       </div>
 
       {% elif job.job_type == 'resize_video' %}
       <div class="card p-4">
-        <h6 class="fw-semibold mb-3"><i class="bi bi-camera-video"></i> Vídeo comprimido</h6>
-        <video controls class="w-100 rounded mb-3" style="max-height:420px;background:#000">
-          <source src="{{ output_url }}" type="video/mp4">
-        </video>
-        <a href="{{ output_url }}" download class="btn btn-primary w-100">
-          <i class="bi bi-download"></i> Baixar vídeo
-        </a>
+        <div class="result-header">
+          <span class="result-label"><i class="ri-video-line"></i> Vídeo comprimido</span>
+          <a href="{{ output_url }}" download class="btn btn-primary btn-sm px-3">
+            <i class="ri-download-line"></i> Baixar
+          </a>
+        </div>
+        <div class="result-preview">
+          <video controls class="w-100 rounded" style="max-height:400px;background:#000">
+            <source src="{{ output_url }}" type="video/mp4">
+          </video>
+        </div>
+      </div>
+
+      {% elif job.job_type == 'image_to_gif' or job.job_type == 'video_to_gif' %}
+      <div class="card p-4">
+        <div class="result-header">
+          <span class="result-label"><i class="ri-magic-line"></i> GIF gerado</span>
+          <a href="{{ output_url }}" download class="btn btn-primary btn-sm px-3">
+            <i class="ri-download-line"></i> Baixar GIF
+          </a>
+        </div>
+        <div class="result-preview" style="background:#111;text-align:center;padding:1rem;">
+          <img src="{{ output_url }}" class="img-fluid rounded" alt="GIF gerado" style="max-height:400px;">
+        </div>
       </div>
 
       {% elif job.job_type == 'frames' %}
       <div class="card p-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h6 class="fw-semibold mb-0"><i class="bi bi-collection"></i> Frames extraídos</h6>
-          <a href="{{ output_url }}" download="frames.zip" class="btn btn-primary btn-sm">
-            <i class="bi bi-file-zip"></i> Baixar .zip
+        <div class="result-header">
+          <span class="result-label"><i class="ri-film-line"></i> Frames extraídos</span>
+          <a href="{{ output_url }}" download="frames.zip" class="btn btn-primary btn-sm px-3">
+            <i class="ri-file-zip-line"></i> Baixar .zip
           </a>
         </div>
-
         {% if frame_urls %}
-        <div class="row g-2">
+        <div class="frames-grid">
           {% for url in frame_urls %}
-          <div class="col-6 col-sm-4 col-md-3">
-            <a href="{{ url }}" target="_blank">
-              <img src="{{ url }}" class="img-fluid rounded w-100"
-                   style="aspect-ratio:16/9;object-fit:cover" alt="Frame">
-            </a>
-          </div>
+          <a href="{{ url }}" target="_blank" class="frame-thumb">
+            <img src="{{ url }}" alt="Frame" loading="lazy">
+          </a>
           {% endfor %}
         </div>
         {% if job.frame_count and job.frame_count > 30 %}
-        <p class="text-muted small mt-2 mb-0">
-          Mostrando 30 de {{ job.frame_count }} frames. Baixe o .zip para ver todos.
-        </p>
+        <p class="frames-note">Mostrando 30 de {{ job.frame_count }} frames. Baixe o .zip para ver todos.</p>
         {% endif %}
         {% endif %}
       </div>
       {% endif %}
 
     {% endif %}
+
   </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .jd-icon {
+    width: 44px; height: 44px;
+    border-radius: .75rem;
+    background: var(--c-muted-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+    color: var(--c-text-2);
+    flex-shrink: 0;
+  }
+
+  .jd-title {
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    margin: 0;
+    color: var(--c-text);
+  }
+
+  .jd-meta {
+    font-size: .78rem;
+    color: var(--c-text-3);
+    margin: .15rem 0 0;
+  }
+
+  /* Metrics */
+  .metrics-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    border-top: 1px solid var(--c-border);
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+  }
+
+  .metric-box {
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+  }
+
+  .metric-sep {
+    width: 1px;
+    background: var(--c-border);
+    align-self: stretch;
+    margin: 0 -.25rem;
+  }
+
+  .metric-box-label {
+    font-size: .65rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--c-text-3);
+  }
+
+  .metric-box-val {
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -.03em;
+    color: var(--c-text);
+  }
+
+  .metric-box-val--green { color: var(--c-success); }
+
+  /* Error box */
+  .err-box {
+    display: flex;
+    align-items: flex-start;
+    gap: .5rem;
+    background: var(--c-danger-bg);
+    color: var(--c-danger);
+    border-radius: .65rem;
+    padding: .75rem 1rem;
+    font-size: .85rem;
+    font-weight: 500;
+  }
+  .err-box i { font-size: 1rem; margin-top: .05rem; flex-shrink: 0; }
+
+  /* Processing */
+  .processing-spinner {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 3px solid var(--c-border);
+    border-top-color: #111;
+    animation: spin .75s linear infinite;
+    margin: 0 auto 1.25rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .processing-label {
+    font-size: .95rem;
+    font-weight: 700;
+    color: var(--c-text);
+    margin: 0 0 .25rem;
+    letter-spacing: -.01em;
+  }
+  .processing-sub {
+    font-size: .82rem;
+    color: var(--c-text-3);
+    margin: 0;
+  }
+
+  /* Result */
+  .result-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .result-label {
+    font-size: .88rem;
+    font-weight: 700;
+    color: var(--c-text);
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    letter-spacing: -.01em;
+  }
+
+  .result-preview {
+    border-radius: .75rem;
+    overflow: hidden;
+    background: var(--c-muted-bg);
+  }
+
+  /* Frames */
+  .frames-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: .5rem;
+    margin-top: .25rem;
+  }
+
+  .frame-thumb {
+    display: block;
+    border-radius: .5rem;
+    overflow: hidden;
+    aspect-ratio: 16/9;
+    background: var(--c-muted-bg);
+    transition: transform .2s cubic-bezier(0.32,0.72,0,1);
+  }
+  .frame-thumb:hover { transform: scale(1.03); }
+  .frame-thumb img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .frames-note {
+    font-size: .78rem;
+    color: var(--c-text-3);
+    margin: .75rem 0 0;
+  }
+</style>
 {% endblock %}
 
 {% block extra_js %}

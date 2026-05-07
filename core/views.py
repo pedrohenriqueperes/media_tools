@@ -12,6 +12,12 @@ from .tasks import process_job_async
 FRAMES_PREVIEW_LIMIT = 30
 
 
+def home(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+    return render(request, 'core/home.html')
+
+
 @login_required
 def dashboard(request):
     jobs = MediaJob.objects.filter(user=request.user)
@@ -29,6 +35,12 @@ def submit_job(request):
         if form.is_valid():
             job = form.save(commit=False)
             job.user = request.user
+            if job.job_type == 'video_to_gif':
+                job.job_params = {
+                    k: request.POST.get(k)
+                    for k in ('fps', 'start', 'duration', 'width')
+                    if request.POST.get(k)
+                }
             job.save()
             process_job_async(job.pk)
             if is_ajax:
@@ -71,3 +83,20 @@ def job_detail(request, pk):
 def job_status(request, pk):
     job = get_object_or_404(MediaJob, pk=pk, user=request.user)
     return JsonResponse({'status': job.status})
+
+
+@login_required
+def delete_job(request, pk):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    job = get_object_or_404(MediaJob, pk=pk, user=request.user)
+    job.delete()
+    return JsonResponse({'ok': True})
+
+
+@login_required
+def clear_jobs(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'method not allowed'}, status=405)
+    MediaJob.objects.filter(user=request.user).delete()
+    return JsonResponse({'ok': True})

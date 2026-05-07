@@ -2,7 +2,7 @@ from pathlib import Path
 from django import forms
 from .models import MediaJob
 
-IMAGE_EXTS = {'.jpg', '.jpeg', '.png'}
+IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tiff'}
 VIDEO_EXTS = {'.mp4', '.mov', '.avi', '.mkv'}
 MAX_UPLOAD_MB = 200
 
@@ -32,9 +32,9 @@ class MediaJobForm(forms.ModelForm):
             raise forms.ValidationError(f'Arquivo muito grande. Limite: {MAX_UPLOAD_MB} MB.')
 
         ext = Path(f.name).suffix.lower()
-        if job_type == 'resize_image' and ext not in IMAGE_EXTS:
-            raise forms.ValidationError('Para redução de imagem, envie um .jpg ou .png.')
-        if job_type in ('resize_video', 'frames') and ext not in VIDEO_EXTS:
-            raise forms.ValidationError('Para vídeo/frames, envie um .mp4, .mov, .avi ou .mkv.')
+        if job_type in ('resize_image', 'image_to_gif') and ext not in IMAGE_EXTS:
+            raise forms.ValidationError('Para este tipo, envie uma imagem (.jpg, .png, .webp, .bmp).')
+        if job_type in ('resize_video', 'frames', 'video_to_gif') and ext not in VIDEO_EXTS:
+            raise forms.ValidationError('Para este tipo, envie um vídeo (.mp4, .mov, .avi, .mkv).')
 
         return cleaned_data

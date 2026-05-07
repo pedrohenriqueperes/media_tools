@@ -1,160 +1,313 @@
 {% extends 'base.html' %}
-{% block title %}Enviar Arquivo — MediaTools{% endblock %}
+{% block title %}Novo Job — MediaTools{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
 
 {% block content %}
+<a href="{% url 'dashboard' %}" class="back-link">
+  <i class="ri-arrow-left-line"></i> Dashboard
+</a>
+
 <div class="row justify-content-center">
   <div class="col-12 col-md-8 col-lg-6">
+
     <div class="card p-4">
-      <h5 class="fw-bold mb-4"><i class="bi bi-upload"></i> Enviar Arquivo</h5>
+      <h1 class="submit-title">Novo job</h1>
+      <p class="submit-sub">Envie uma imagem ou vídeo e escolha o tipo de processamento.</p>
 
       <form id="upload-form" method="post" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
 
-        {# Tipo de processamento #}
         <div class="mb-4">
-          <label class="form-label fw-semibold">Tipo de processamento</label>
+          <label class="form-label">Tipo de processamento</label>
           <select name="job_type" id="id_job_type" class="form-select">
             <option value="">Selecione...</option>
-            <option value="resize_image">Redução de Imagem</option>
-            <option value="resize_video">Redução de Vídeo</option>
-            <option value="frames">Extração de Frames</option>
+            <option value="resize_image">Redução de imagem</option>
+            <option value="resize_video">Compressão de vídeo</option>
+            <option value="frames">Extração de frames</option>
+            <option value="image_to_gif">Imagem para GIF</option>
+            <option value="video_to_gif">Vídeo para GIF</option>
           </select>
         </div>
 
-        {# Drop zone #}
-        <div class="mb-4">
-          <label class="form-label fw-semibold">Arquivo</label>
-          <div id="drop-zone"
-               class="border border-2 rounded-3 p-5 text-center position-relative"
-               style="border-style:dashed!important;border-color:#dee2e6!important;cursor:pointer;transition:background .15s,border-color .15s;">
-            <i class="bi bi-cloud-upload fs-1 text-muted d-block mb-2"></i>
-            <p class="mb-1 fw-semibold">Arraste o arquivo aqui</p>
-            <p class="text-muted small mb-0">ou clique para selecionar &mdash; máx. 200 MB</p>
-            <input type="file" name="input_file" id="file-input"
-                   class="position-absolute top-0 start-0 w-100 h-100 opacity-0"
-                   style="cursor:pointer">
-          </div>
-
-          {# File info #}
-          <div id="file-info" class="mt-2 d-none">
-            <div class="d-flex align-items-center gap-2 p-2 bg-light rounded">
-              <i class="bi bi-file-earmark text-primary"></i>
-              <span id="file-name" class="small fw-semibold text-truncate flex-grow-1"></span>
-              <span id="file-size" class="small text-muted text-nowrap"></span>
-              <button type="button" id="clear-file" class="btn btn-sm btn-link text-danger p-0">
-                <i class="bi bi-x-lg"></i>
-              </button>
+        {# Parâmetros GIF (só para video_to_gif) #}
+        <div id="gif-params" class="gif-params-box d-none mb-4">
+          <p class="gif-params-title"><i class="ri-magic-line"></i> Opções do GIF</p>
+          <div class="row g-3">
+            <div class="col-6 col-sm-3">
+              <label class="form-label">FPS</label>
+              <input type="number" name="fps" id="gif-fps" class="form-control"
+                     value="10" min="1" max="30" placeholder="10">
+              <span class="field-hint">1 – 30</span>
+            </div>
+            <div class="col-6 col-sm-3">
+              <label class="form-label">Início (s)</label>
+              <input type="number" name="start" id="gif-start" class="form-control"
+                     value="0" min="0" step="0.1" placeholder="0">
+              <span class="field-hint">segundos</span>
+            </div>
+            <div class="col-6 col-sm-3">
+              <label class="form-label">Duração (s)</label>
+              <input type="number" name="duration" id="gif-duration" class="form-control"
+                     min="0.1" step="0.1" placeholder="inteiro">
+              <span class="field-hint">vazio = tudo</span>
+            </div>
+            <div class="col-6 col-sm-3">
+              <label class="form-label">Largura (px)</label>
+              <input type="number" name="width" id="gif-width" class="form-control"
+                     min="64" step="1" placeholder="original">
+              <span class="field-hint">vazio = original</span>
             </div>
           </div>
         </div>
 
-        {# Erro de validação #}
-        <div id="form-error" class="alert alert-danger d-none"></div>
-
-        {# Progress #}
-        <div id="progress-section" class="mb-3 d-none">
-          <div class="d-flex justify-content-between small mb-1">
-            <span class="text-muted" id="progress-label">Enviando...</span>
-            <span id="progress-pct" class="fw-semibold">0%</span>
+        <div class="mb-4">
+          <label class="form-label">Arquivo</label>
+          <div id="drop-zone" class="drop-zone">
+            <input type="file" name="input_file" id="file-input"
+                   class="position-absolute top-0 start-0 w-100 h-100"
+                   style="opacity:0;cursor:pointer;z-index:2">
+            <div id="dz-idle" class="dz-content">
+              <div class="dz-icon"><i class="ri-upload-cloud-2-line"></i></div>
+              <p class="dz-label">Arraste o arquivo aqui</p>
+              <p class="dz-hint">ou clique para selecionar · máx. 200 MB</p>
+            </div>
+            <div id="dz-selected" class="dz-content d-none">
+              <div class="dz-icon dz-icon--ok"><i class="ri-file-check-line"></i></div>
+              <p class="dz-label" id="file-name-display"></p>
+              <p class="dz-hint" id="file-size-display"></p>
+            </div>
           </div>
-          <div class="progress" style="height:8px">
-            <div id="progress-bar"
-                 class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
-                 style="width:0%;transition:width .2s"></div>
+          <button type="button" id="clear-file" class="clear-file-btn d-none">
+            <i class="ri-close-line"></i> Remover arquivo
+          </button>
+        </div>
+
+        <div id="form-error" class="form-err d-none"></div>
+
+        <div id="progress-section" class="progress-wrap d-none">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span id="progress-label" class="progress-lbl">Enviando...</span>
+            <span id="progress-pct" class="progress-pct">0%</span>
+          </div>
+          <div class="progress-track">
+            <div id="progress-bar" class="progress-fill" style="width:0%"></div>
           </div>
         </div>
 
-        <div class="d-grid gap-2 d-sm-flex">
+        <div class="d-flex gap-2 mt-3">
           <button type="submit" id="submit-btn" class="btn btn-primary flex-grow-1">
-            <i class="bi bi-send"></i> Processar
+            <i class="ri-send-plane-line"></i> Processar
           </button>
           <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancelar</a>
         </div>
       </form>
     </div>
+
   </div>
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+  .submit-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -.025em;
+    margin: 0 0 .25rem;
+  }
+  .submit-sub {
+    font-size: .85rem;
+    color: var(--c-text-2);
+    margin: 0 0 1.75rem;
+  }
+
+  /* Drop zone */
+  .drop-zone {
+    position: relative;
+    border: 1.5px dashed rgba(0,0,0,.15);
+    border-radius: .875rem;
+    background: #fafafa;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  .drop-zone.drag-over {
+    border-color: var(--c-accent);
+    background: rgba(124,58,237,.04);
+  }
+  .drop-zone.has-file {
+    border-color: var(--c-success);
+    background: var(--c-success-bg);
+    border-style: solid;
+  }
+
+  .dz-content { pointer-events: none; }
+
+  .dz-icon {
+    width: 48px; height: 48px;
+    border-radius: .875rem;
+    background: rgba(0,0,0,.05);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    color: var(--c-text-3);
+    margin: 0 auto .875rem;
+    transition: background .2s, color .2s;
+  }
+  .dz-icon--ok { background: var(--c-success-bg); color: var(--c-success); }
+
+  .dz-label {
+    font-size: .9rem;
+    font-weight: 700;
+    color: var(--c-text);
+    margin: 0 0 .25rem;
+    letter-spacing: -.01em;
+  }
+  .dz-hint {
+    font-size: .78rem;
+    color: var(--c-text-3);
+    margin: 0;
+  }
+
+  .clear-file-btn {
+    display: inline-flex; align-items: center; gap: .3rem;
+    margin-top: .6rem;
+    background: none; border: none; cursor: pointer;
+    font-size: .78rem; font-weight: 500;
+    color: var(--c-danger);
+    padding: 0;
+    transition: opacity .15s;
+  }
+  .clear-file-btn:hover { opacity: .7; }
+
+  /* Error */
+  .form-err {
+    background: var(--c-danger-bg);
+    color: var(--c-danger);
+    border-radius: .65rem;
+    padding: .65rem 1rem;
+    font-size: .85rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+  }
+
+  /* Progress */
+  .progress-wrap { margin-bottom: 1rem; }
+  .progress-lbl { font-size: .8rem; color: var(--c-text-2); font-weight: 500; }
+  .progress-pct { font-size: .8rem; font-weight: 700; color: var(--c-text); }
+  .progress-track {
+    height: 5px;
+    background: rgba(0,0,0,.07);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: #111;
+    border-radius: 100px;
+    transition: width .2s ease;
+  }
+  .progress-fill.processing { background: var(--c-warning); }
+
+  /* GIF params */
+  .gif-params-box {
+    background: rgba(124,58,237,.05);
+    border: 1px solid rgba(124,58,237,.15);
+    border-radius: .875rem;
+    padding: 1.25rem;
+  }
+  .gif-params-title {
+    font-size: .82rem;
+    font-weight: 700;
+    color: var(--c-accent);
+    margin: 0 0 1rem;
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+    letter-spacing: -.01em;
+  }
+  .field-hint {
+    font-size: .7rem;
+    color: var(--c-text-3);
+    margin-top: .2rem;
+    display: block;
+  }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
-const dropZone   = document.getElementById('drop-zone');
-const fileInput  = document.getElementById('file-input');
-const fileInfo   = document.getElementById('file-info');
-const fileName   = document.getElementById('file-name');
-const fileSize   = document.getElementById('file-size');
-const clearBtn   = document.getElementById('clear-file');
+// Show/hide GIF params
+const jobTypeSel = document.getElementById('id_job_type');
+const gifParams  = document.getElementById('gif-params');
+jobTypeSel.addEventListener('change', () => {
+  gifParams.classList.toggle('d-none', jobTypeSel.value !== 'video_to_gif');
+});
+
+const dz        = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const dzIdle    = document.getElementById('dz-idle');
+const dzSel     = document.getElementById('dz-selected');
+const fileNameD = document.getElementById('file-name-display');
+const fileSizeD = document.getElementById('file-size-display');
+const clearBtn  = document.getElementById('clear-file');
 const progressSec = document.getElementById('progress-section');
 const progressBar = document.getElementById('progress-bar');
 const progressPct = document.getElementById('progress-pct');
 const progressLbl = document.getElementById('progress-label');
-const submitBtn  = document.getElementById('submit-btn');
-const formError  = document.getElementById('form-error');
-const form       = document.getElementById('upload-form');
+const submitBtn = document.getElementById('submit-btn');
+const formError = document.getElementById('form-error');
+const form      = document.getElementById('upload-form');
 
-function fmtSize(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / 1048576).toFixed(1) + ' MB';
+function fmt(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
 }
 
 function showFile(file) {
-  fileName.textContent = file.name;
-  fileSize.textContent = fmtSize(file.size);
-  fileInfo.classList.remove('d-none');
-  dropZone.style.borderColor = '#0d6efd !important';
+  fileNameD.textContent = file.name;
+  fileSizeD.textContent = fmt(file.size);
+  dzIdle.classList.add('d-none');
+  dzSel.classList.remove('d-none');
+  dz.classList.add('has-file');
+  clearBtn.classList.remove('d-none');
 }
 
 function clearFile() {
   fileInput.value = '';
-  fileInfo.classList.add('d-none');
-  fileName.textContent = '';
-  fileSize.textContent = '';
-  dropZone.style.borderColor = '';
+  dzIdle.classList.remove('d-none');
+  dzSel.classList.add('d-none');
+  dz.classList.remove('has-file');
+  clearBtn.classList.add('d-none');
 }
 
-fileInput.addEventListener('change', () => {
-  if (fileInput.files[0]) showFile(fileInput.files[0]);
-});
-
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) showFile(fileInput.files[0]); });
 clearBtn.addEventListener('click', clearFile);
 
-['dragover', 'dragenter'].forEach(e => {
-  dropZone.addEventListener(e, ev => {
-    ev.preventDefault();
-    dropZone.style.background = '#e9f0ff';
-    dropZone.style.borderColor = '#0d6efd';
-  });
-});
-['dragleave', 'drop'].forEach(e => {
-  dropZone.addEventListener(e, ev => {
-    ev.preventDefault();
-    dropZone.style.background = '';
-    if (e === 'drop') {
-      const file = ev.dataTransfer.files[0];
-      if (file) {
-        const dt = new DataTransfer();
-        dt.items.add(file);
-        fileInput.files = dt.files;
-        showFile(file);
-      }
-    }
-  });
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', e => { e.preventDefault(); dz.classList.remove('drag-over'); });
+dz.addEventListener('drop', e => {
+  e.preventDefault();
+  dz.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const dt = new DataTransfer(); dt.items.add(file);
+    fileInput.files = dt.files;
+    showFile(file);
+  }
 });
 
 form.addEventListener('submit', function(e) {
   e.preventDefault();
   formError.classList.add('d-none');
-
   if (!fileInput.files[0]) {
-    formError.textContent = 'Selecione um arquivo.';
+    formError.textContent = 'Selecione um arquivo antes de continuar.';
     formError.classList.remove('d-none');
     return;
   }
 
-  const formData = new FormData(form);
   const xhr = new XMLHttpRequest();
-
   submitBtn.disabled = true;
   progressSec.classList.remove('d-none');
 
@@ -165,7 +318,7 @@ form.addEventListener('submit', function(e) {
     progressPct.textContent = pct + '%';
     if (pct === 100) {
       progressLbl.textContent = 'Processando...';
-      progressBar.classList.add('bg-warning');
+      progressBar.classList.add('processing');
     }
   });
 
@@ -197,7 +350,7 @@ form.addEventListener('submit', function(e) {
 
   xhr.open('POST', '{% url "submit_job" %}');
   xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-  xhr.send(formData);
+  xhr.send(new FormData(form));
 });
 </script>
 {% endblock %}

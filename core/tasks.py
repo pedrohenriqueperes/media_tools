@@ -46,6 +46,27 @@ def process_job(job_pk):
             job.output_path = f'outputs/{job_pk}/{out_name}'
             job.output_size = out_file.stat().st_size
 
+        elif job.job_type == 'image_to_gif':
+            out_name = Path(input_path).stem + '.gif'
+            out_file = output_dir / out_name
+            _image_to_gif(input_path, str(out_file))
+            job.output_path = f'outputs/{job_pk}/{out_name}'
+            job.output_size = out_file.stat().st_size
+
+        elif job.job_type == 'video_to_gif':
+            out_name = Path(input_path).stem + '.gif'
+            out_file = output_dir / out_name
+            p = job.job_params or {}
+            _video_to_gif(
+                input_path, str(out_file),
+                fps=int(p.get('fps', 10)),
+                start=float(p.get('start', 0)),
+                duration=float(p['duration']) if p.get('duration') else None,
+                width=int(p['width']) if p.get('width') else None,
+            )
+            job.output_path = f'outputs/{job_pk}/{out_name}'
+            job.output_size = out_file.stat().st_size
+
         job.status = 'done'
     except Exception as exc:
         job.status = 'error'
@@ -98,3 +119,23 @@ def _resize_video(input_path, output_path):
         '-movflags', '+faststart',
         output_path,
     ], check=True)
+
+
+def _image_to_gif(input_path, output_path):
+    from PIL import Image
+    img = Image.open(input_path)
+    img.save(output_path, 'GIF')
+
+
+def _video_to_gif(input_path, output_path, fps=10, start=0, duration=None, width=None):
+    from moviepy.video.io.VideoFileClip import VideoFileClip
+    video = VideoFileClip(input_path)
+    if width:
+        ratio = width / video.w
+        video = video.resized(ratio)
+    if duration:
+        video = video.subclipped(start, start + duration)
+    elif start > 0:
+        video = video.subclipped(start)
+    video.write_gif(output_path, fps=fps)
+    video.close()

@@ -7,6 +7,8 @@ class MediaJob(models.Model):
         ('frames', 'Extração de Frames'),
         ('resize_image', 'Redução de Imagem'),
         ('resize_video', 'Redução de Vídeo'),
+        ('image_to_gif', 'Imagem para GIF'),
+        ('video_to_gif', 'Vídeo para GIF'),
     ]
     STATUS_CHOICES = [
         ('pending', 'Aguardando'),
@@ -26,6 +28,7 @@ class MediaJob(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     finished_at = models.DateTimeField(null=True, blank=True)
     error_message = models.TextField(blank=True)
+    job_params = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ['-created_at']

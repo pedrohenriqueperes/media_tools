@@ -1,53 +1,90 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard — MediaTools{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-  <h4 class="mb-0 fw-bold">Meus Jobs</h4>
-  <a href="{% url 'submit_job' %}" class="btn btn-primary">
-    <i class="bi bi-plus-lg"></i> Novo
-  </a>
+<div class="page-header">
+  <h1 class="page-header-title">Meus Jobs</h1>
+  <div class="d-flex gap-2">
+    {% if page.object_list %}
+    <button id="clear-all-btn" class="btn btn-outline-secondary">
+      <i class="ri-delete-bin-line"></i> Limpar tudo
+    </button>
+    {% endif %}
+    <a href="{% url 'submit_job' %}" class="btn btn-primary">
+      <i class="ri-add-line"></i> Novo job
+    </a>
+  </div>
 </div>
 
 {% if page.object_list %}
   <div class="row g-3 mb-4">
     {% for job in page.object_list %}
-    <div class="col-12 col-sm-6 col-xl-4">
-      <a href="{% url 'job_detail' job.pk %}" class="text-decoration-none text-dark">
-        <div class="card h-100 p-3 hover-shadow" style="transition:box-shadow .15s">
-          <div class="d-flex justify-content-between align-items-start mb-2">
-            <span class="fw-semibold">{{ job.get_job_type_display }}</span>
-            {% if job.status == 'done' %}
-              <span class="badge bg-success">Concluído</span>
-            {% elif job.status == 'processing' %}
-              <span class="badge bg-warning text-dark">Processando</span>
-            {% elif job.status == 'error' %}
-              <span class="badge bg-danger">Erro</span>
-            {% else %}
-              <span class="badge bg-secondary">Aguardando</span>
-            {% endif %}
+    <div class="col-12 col-sm-6 col-xl-4" id="job-card-{{ job.pk }}">
+      <a href="{% url 'job_detail' job.pk %}" class="text-decoration-none d-block h-100">
+        <div class="card p-0 h-100 job-card">
+          <div class="p-3 d-flex flex-column gap-2 flex-grow-1">
+
+            <div class="d-flex align-items-start justify-content-between gap-2">
+              <div class="job-type-icon">
+                {% if job.job_type == 'frames' %}
+                  <i class="ri-film-line"></i>
+                {% elif job.job_type == 'resize_image' %}
+                  <i class="ri-image-line"></i>
+                {% elif job.job_type == 'image_to_gif' or job.job_type == 'video_to_gif' %}
+                  <i class="ri-magic-line"></i>
+                {% else %}
+                  <i class="ri-video-line"></i>
+                {% endif %}
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                {% if job.status == 'done' %}
+                  <span class="spill spill-done">Concluído</span>
+                {% elif job.status == 'processing' %}
+                  <span class="spill spill-processing">Processando</span>
+                {% elif job.status == 'error' %}
+                  <span class="spill spill-error">Erro</span>
+                {% else %}
+                  <span class="spill spill-pending">Aguardando</span>
+                {% endif %}
+                <button class="delete-job-btn"
+                        data-pk="{{ job.pk }}"
+                        data-url="{% url 'delete_job' job.pk %}"
+                        title="Excluir job">
+                  <i class="ri-close-line"></i>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <p class="job-type-name">{{ job.get_job_type_display }}</p>
+              <p class="job-date">{{ job.created_at|date:"d/m/Y · H:i" }}</p>
+            </div>
+
           </div>
 
-          <p class="text-muted small mb-2">{{ job.created_at|date:"d/m/Y H:i" }}</p>
-
           {% if job.input_size %}
-          <div class="d-flex gap-3 small mt-auto pt-2 border-top">
-            <span class="text-muted">
-              <i class="bi bi-upload text-muted"></i> {{ job.input_size|filesizeformat }}
+          <div class="job-metrics">
+            <span class="job-metric">
+              <span class="metric-label">Original</span>
+              <span class="metric-val">{{ job.input_size|filesizeformat }}</span>
             </span>
             {% if job.output_size %}
-            <span class="text-muted">
-              <i class="bi bi-download text-muted"></i> {{ job.output_size|filesizeformat }}
-            </span>
-            {% if job.savings_pct is not None and job.savings_pct > 0 %}
-            <span class="text-success fw-semibold ms-auto">
-              <i class="bi bi-arrow-down-circle-fill"></i> {{ job.savings_pct }}% menor
+            <span class="job-metric">
+              <span class="metric-label">Resultado</span>
+              <span class="metric-val">{{ job.output_size|filesizeformat }}</span>
             </span>
             {% endif %}
+            {% if job.savings_pct is not None and job.savings_pct > 0 %}
+            <span class="job-metric ms-auto">
+              <span class="metric-label">Redução</span>
+              <span class="metric-val metric-val--green">−{{ job.savings_pct }}%</span>
+            </span>
             {% endif %}
             {% if job.frame_count %}
-            <span class="text-muted">
-              <i class="bi bi-collection"></i> {{ job.frame_count }} frames
+            <span class="job-metric">
+              <span class="metric-label">Frames</span>
+              <span class="metric-val">{{ job.frame_count }}</span>
             </span>
             {% endif %}
           </div>
@@ -58,45 +95,308 @@
     {% endfor %}
   </div>
 
-  {# Paginação #}
   {% if page.has_other_pages %}
-  <nav aria-label="Paginação">
-    <ul class="pagination justify-content-center mb-0">
-      {% if page.has_previous %}
-        <li class="page-item">
-          <a class="page-link" href="?page={{ page.previous_page_number }}">
-            <i class="bi bi-chevron-left"></i>
-          </a>
-        </li>
-      {% else %}
-        <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-left"></i></span></li>
-      {% endif %}
+  <nav class="d-flex justify-content-center gap-1">
+    {% if page.has_previous %}
+      <a class="page-btn" href="?page={{ page.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a>
+    {% else %}
+      <span class="page-btn page-btn--disabled"><i class="ri-arrow-left-s-line"></i></span>
+    {% endif %}
 
-      {% for num in page.paginator.page_range %}
-        {% if page.number == num %}
-          <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-        {% else %}
-          <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
-        {% endif %}
-      {% endfor %}
-
-      {% if page.has_next %}
-        <li class="page-item">
-          <a class="page-link" href="?page={{ page.next_page_number }}">
-            <i class="bi bi-chevron-right"></i>
-          </a>
-        </li>
+    {% for num in page.paginator.page_range %}
+      {% if page.number == num %}
+        <span class="page-btn page-btn--active">{{ num }}</span>
       {% else %}
-        <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-right"></i></span></li>
+        <a class="page-btn" href="?page={{ num }}">{{ num }}</a>
       {% endif %}
-    </ul>
+    {% endfor %}
+
+    {% if page.has_next %}
+      <a class="page-btn" href="?page={{ page.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a>
+    {% else %}
+      <span class="page-btn page-btn--disabled"><i class="ri-arrow-right-s-line"></i></span>
+    {% endif %}
   </nav>
   {% endif %}
 
 {% else %}
-  <div class="text-center py-5 text-muted">
-    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-    Nenhum job ainda. <a href="{% url 'submit_job' %}">Envie um arquivo</a>.
+  <div class="empty-state">
+    <div class="empty-icon"><i class="ri-inbox-2-line"></i></div>
+    <p class="empty-title">Nenhum job ainda</p>
+    <p class="empty-sub">Envie uma imagem ou vídeo para começar a processar.</p>
+    <a href="{% url 'submit_job' %}" class="btn btn-primary mt-2">Enviar primeiro arquivo</a>
   </div>
 {% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Job cards */
+  .job-card {
+    transition: transform .22s cubic-bezier(0.32,0.72,0,1),
+                box-shadow .22s cubic-bezier(0.32,0.72,0,1);
+    overflow: hidden;
+  }
+  .job-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,.05), 0 16px 36px rgba(0,0,0,.08) !important;
+  }
+
+  .job-type-icon {
+    width: 36px; height: 36px;
+    border-radius: .6rem;
+    background: var(--c-muted-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    color: var(--c-text-2);
+    flex-shrink: 0;
+  }
+
+  .job-type-name {
+    font-size: .88rem;
+    font-weight: 700;
+    color: var(--c-text);
+    margin: 0;
+    letter-spacing: -.01em;
+  }
+
+  .job-date {
+    font-size: .77rem;
+    color: var(--c-text-3);
+    margin: .1rem 0 0;
+  }
+
+  .job-metrics {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    border-top: 1px solid var(--c-border);
+    padding: .65rem .85rem;
+    flex-wrap: wrap;
+    gap: .75rem;
+  }
+
+  .job-metric {
+    display: flex;
+    flex-direction: column;
+    gap: .1rem;
+  }
+
+  .metric-label {
+    font-size: .65rem;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--c-text-3);
+  }
+
+  .metric-val {
+    font-size: .85rem;
+    font-weight: 700;
+    color: var(--c-text);
+    letter-spacing: -.01em;
+  }
+
+  .metric-val--green { color: var(--c-success); }
+
+  /* Pagination */
+  .page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px; height: 34px;
+    border-radius: .5rem;
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--c-text-2);
+    text-decoration: none;
+    border: 1px solid var(--c-border);
+    background: var(--c-card);
+    transition: all .15s;
+    padding: 0 .4rem;
+  }
+  .page-btn:hover { background: var(--c-muted-bg); color: var(--c-text); }
+  .page-btn--active { background: #111; color: #fff; border-color: #111; }
+  .page-btn--disabled { opacity: .35; pointer-events: none; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .empty-icon {
+    width: 56px; height: 56px;
+    border-radius: 1rem;
+    background: var(--c-muted-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem;
+    color: var(--c-text-3);
+    margin-bottom: 1.25rem;
+  }
+  .empty-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--c-text);
+    margin: 0 0 .35rem;
+    letter-spacing: -.01em;
+  }
+  .empty-sub {
+    font-size: .85rem;
+    color: var(--c-text-2);
+    margin: 0;
+    max-width: 280px;
+  }
+
+  /* Delete button */
+  .delete-job-btn {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--c-text-3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .9rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background .15s, color .15s;
+    position: relative;
+    z-index: 2;
+  }
+  .delete-job-btn:hover {
+    background: var(--c-danger-bg);
+    color: var(--c-danger);
+  }
+
+  /* Confirm overlay */
+  .confirm-toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: #111;
+    color: #fff;
+    border-radius: 100px;
+    padding: .6rem 1rem .6rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    font-size: .85rem;
+    font-weight: 500;
+    box-shadow: 0 4px 24px rgba(0,0,0,.25);
+    z-index: 300;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s, transform .25s cubic-bezier(0.32,0.72,0,1);
+    white-space: nowrap;
+  }
+  .confirm-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+  }
+  .confirm-toast button {
+    background: rgba(255,255,255,.15);
+    border: none;
+    color: #fff;
+    border-radius: 100px;
+    padding: .3rem .8rem;
+    font-size: .8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .confirm-toast button:hover { background: rgba(255,255,255,.25); }
+  .confirm-toast .toast-cancel {
+    background: transparent;
+    color: rgba(255,255,255,.5);
+    padding: .3rem .5rem;
+  }
+  .confirm-toast .toast-cancel:hover { color: #fff; background: transparent; }
+
+  /* Removing animation */
+  .job-removing {
+    opacity: 0;
+    transform: scale(.96);
+    transition: opacity .25s, transform .25s cubic-bezier(0.32,0.72,0,1);
+    pointer-events: none;
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const CSRF = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+  // ── Toast ──
+  const toast = document.createElement('div');
+  toast.className = 'confirm-toast';
+  toast.innerHTML = `
+    <span id="toast-msg"></span>
+    <button id="toast-confirm">Excluir</button>
+    <button class="toast-cancel" id="toast-cancel">Cancelar</button>
+  `;
+  document.body.appendChild(toast);
+
+  let pendingAction = null;
+  let toastTimer   = null;
+
+  function showToast(msg, onConfirm) {
+    clearTimeout(toastTimer);
+    document.getElementById('toast-msg').textContent = msg;
+    pendingAction = onConfirm;
+    toast.classList.add('show');
+    toastTimer = setTimeout(hideToast, 6000);
+  }
+
+  function hideToast() {
+    toast.classList.remove('show');
+    pendingAction = null;
+  }
+
+  document.getElementById('toast-confirm').addEventListener('click', () => {
+    if (pendingAction) pendingAction();
+    hideToast();
+  });
+  document.getElementById('toast-cancel').addEventListener('click', hideToast);
+
+  // ── Delete individual ──
+  document.querySelectorAll('.delete-job-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const pk  = btn.dataset.pk;
+      const url = btn.dataset.url;
+      showToast('Excluir este job?', () => {
+        fetch(url, { method: 'POST', headers: { 'X-CSRFToken': CSRF } })
+          .then(r => r.json())
+          .then(data => {
+            if (data.ok) {
+              const card = document.getElementById('job-card-' + pk);
+              if (card) {
+                card.classList.add('job-removing');
+                setTimeout(() => card.remove(), 260);
+              }
+            }
+          });
+      });
+    });
+  });
+
+  // ── Clear all ──
+  const clearAllBtn = document.getElementById('clear-all-btn');
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', () => {
+      showToast('Excluir todos os jobs?', () => {
+        fetch('{% url "clear_jobs" %}', { method: 'POST', headers: { 'X-CSRFToken': CSRF } })
+          .then(r => r.json())
+          .then(data => { if (data.ok) window.location.reload(); });
+      });
+    });
+  }
+})();
+</script>
 {% endblock %}

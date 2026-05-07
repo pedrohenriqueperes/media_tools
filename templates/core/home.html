@@ -1,0 +1,657 @@
+{% extends 'base.html' %}
+{% block title %}MediaTools — Processamento de mídia online, sem complicação{% endblock %}
+{% block meta_description %}Redimensione imagens, comprima vídeos e extraia frames no navegador — sem instalação, sem configuração. Crie sua conta grátis e processe seus arquivos em segundos.{% endblock %}
+{% block og_title %}MediaTools — Processamento de mídia online{% endblock %}
+{% block og_description %}Redimensione imagens, comprima vídeos e extraia frames no navegador. Grátis para começar.{% endblock %}
+{% block twitter_title %}MediaTools — Processamento de mídia online{% endblock %}
+{% block twitter_description %}Redimensione imagens, comprima vídeos e extraia frames no navegador. Grátis para começar.{% endblock %}
+{% block body_class %}page-home{% endblock %}
+{% block main_class %}{% endblock %}
+
+{% block structured_data %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "name": "MediaTools",
+      "url": "{{ request.scheme }}://{{ request.get_host }}/",
+      "description": "Processamento de mídia online: redimensione imagens, comprima vídeos e extraia frames sem configuração.",
+      "inLanguage": "pt-BR"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "MediaTools",
+      "applicationCategory": "MultimediaApplication",
+      "operatingSystem": "Web",
+      "inLanguage": "pt-BR",
+      "description": "Redimensione imagens, comprima vídeos e extraia frames no navegador — sem instalação, sem configuração.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "BRL"
+      },
+      "featureList": [
+        "Extração de frames de vídeo",
+        "Redimensionamento de imagens",
+        "Compressão de vídeos H.264"
+      ]
+    }
+  ]
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  body.page-home { background: #060606; }
+
+  /* ── Background orbs ── */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .orb-1 {
+    width: 700px; height: 700px;
+    top: -280px; left: -180px;
+    background: radial-gradient(ellipse at center, rgba(124,58,237,.12) 0%, transparent 70%);
+  }
+  .orb-2 {
+    width: 550px; height: 550px;
+    bottom: -200px; right: -120px;
+    background: radial-gradient(ellipse at center, rgba(8,145,178,.1) 0%, transparent 70%);
+  }
+
+  /* ── Hero ── */
+  .hero {
+    position: relative;
+    z-index: 1;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 7rem 1.5rem 5rem;
+  }
+
+  .eyebrow-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 100px;
+    padding: .32rem .9rem;
+    font-size: .68rem;
+    font-weight: 600;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.42);
+    margin-bottom: 1.75rem;
+    animation: fadeUp .6s cubic-bezier(0.32,0.72,0,1) .1s both;
+  }
+
+  .eyebrow-badge .badge-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: #a78bfa;
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50%      { opacity: .35; }
+  }
+
+  .hero-h1 {
+    font-size: clamp(2.6rem, 6.5vw, 5.8rem);
+    font-weight: 800;
+    letter-spacing: -.035em;
+    line-height: 1.04;
+    color: #fff;
+    max-width: 840px;
+    margin-bottom: 1.5rem;
+    animation: fadeUp .75s cubic-bezier(0.32,0.72,0,1) .2s both;
+  }
+
+  .hero-h1 em {
+    font-style: normal;
+    background: linear-gradient(135deg, #c4b5fd 20%, #67e8f9 80%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-sub {
+    font-size: clamp(.9rem, 2vw, 1.1rem);
+    color: rgba(255,255,255,.38);
+    font-weight: 400;
+    line-height: 1.75;
+    max-width: 440px;
+    margin-bottom: 2.5rem;
+    animation: fadeUp .75s cubic-bezier(0.32,0.72,0,1) .32s both;
+  }
+
+  .hero-ctas {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    animation: fadeUp .75s cubic-bezier(0.32,0.72,0,1) .44s both;
+  }
+
+  /* ── CTA buttons ── */
+  .btn-cta-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    background: #fff;
+    color: #060606;
+    font-size: .88rem;
+    font-weight: 700;
+    padding: .72rem 1.1rem .72rem 1.5rem;
+    border-radius: 100px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: background .25s, transform .25s cubic-bezier(0.32,0.72,0,1);
+  }
+
+  .btn-cta-primary:hover {
+    background: #e6e6e6;
+    color: #060606;
+    transform: scale(.98);
+  }
+
+  .btn-cta-primary:active { transform: scale(.96); }
+
+  .cta-arrow {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: rgba(0,0,0,.09);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .75rem;
+    transition: transform .25s cubic-bezier(0.32,0.72,0,1);
+  }
+
+  .btn-cta-primary:hover .cta-arrow {
+    transform: translateX(2px) translateY(-2px) scale(1.08);
+  }
+
+  .btn-cta-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    color: rgba(255,255,255,.45);
+    font-size: .88rem;
+    font-weight: 500;
+    padding: .72rem 1.35rem;
+    border-radius: 100px;
+    text-decoration: none;
+    border: 1px solid rgba(255,255,255,.1);
+    transition: color .25s, border-color .25s, background .25s;
+  }
+
+  .btn-cta-ghost:hover {
+    color: #fff;
+    border-color: rgba(255,255,255,.22);
+    background: rgba(255,255,255,.05);
+  }
+
+  /* ── Bento section ── */
+  .section-bento {
+    position: relative;
+    z-index: 1;
+    padding: 2rem 1.5rem 7rem;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+
+  .bento-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: .9rem;
+  }
+
+  /* Double-bezel card */
+  .bcard {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: 1.5rem;
+    padding: 1.5px;
+  }
+
+  .bcard-inner {
+    background: rgba(10,10,10,.96);
+    border-radius: calc(1.5rem - 1.5px);
+    padding: 2rem 1.75rem;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
+    display: flex;
+    flex-direction: column;
+    gap: .7rem;
+    height: 100%;
+  }
+
+  .bcard-num {
+    font-size: .6rem;
+    font-weight: 800;
+    letter-spacing: .18em;
+    color: rgba(255,255,255,.18);
+    text-transform: uppercase;
+  }
+
+  .bcard-icon {
+    width: 42px; height: 42px;
+    border-radius: .75rem;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.07);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.15rem;
+    color: rgba(255,255,255,.65);
+    margin-bottom: .15rem;
+  }
+
+  .bcard h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -.02em;
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .bcard p {
+    font-size: .83rem;
+    color: rgba(255,255,255,.35);
+    line-height: 1.7;
+    margin: 0;
+    flex: 1;
+  }
+
+  .bcard-stat {
+    display: flex;
+    align-items: baseline;
+    gap: .4rem;
+    padding-top: 1.25rem;
+    margin-top: auto;
+    border-top: 1px solid rgba(255,255,255,.05);
+  }
+
+  .stat-n {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -.03em;
+  }
+
+  .stat-l {
+    font-size: .75rem;
+    color: rgba(255,255,255,.28);
+    font-weight: 500;
+  }
+
+  /* ── Steps section ── */
+  .section-steps {
+    position: relative;
+    z-index: 1;
+    padding: 5rem 1.5rem 6rem;
+    max-width: 1080px;
+    margin: 0 auto;
+    border-top: 1px solid rgba(255,255,255,.05);
+  }
+
+  .steps-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 5rem;
+    align-items: center;
+  }
+
+  .steps-label {
+    display: inline-flex;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 100px;
+    padding: .28rem .85rem;
+    font-size: .65rem;
+    font-weight: 600;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,.38);
+    margin-bottom: 1.25rem;
+  }
+
+  .steps-h2 {
+    font-size: clamp(1.7rem, 3.5vw, 2.8rem);
+    font-weight: 800;
+    letter-spacing: -.03em;
+    line-height: 1.1;
+    color: #fff;
+    margin: 0;
+  }
+
+  .steps-list {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .step-row {
+    display: flex;
+    gap: 1.1rem;
+    padding: 1.4rem 0;
+    align-items: flex-start;
+  }
+
+  .step-row + .step-row { border-top: 1px solid rgba(255,255,255,.05); }
+
+  .step-n {
+    font-size: .6rem;
+    font-weight: 800;
+    letter-spacing: .14em;
+    color: rgba(255,255,255,.2);
+    text-transform: uppercase;
+    padding-top: .2rem;
+    min-width: 24px;
+  }
+
+  .step-row h4 {
+    font-size: .92rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -.01em;
+    margin: 0 0 .3rem;
+  }
+
+  .step-row p {
+    font-size: .82rem;
+    color: rgba(255,255,255,.33);
+    margin: 0;
+    line-height: 1.65;
+  }
+
+  /* ── CTA box ── */
+  .section-cta {
+    position: relative;
+    z-index: 1;
+    padding: 0 1.5rem 6rem;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+
+  .cta-shell {
+    background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 2rem;
+    padding: 1.5px;
+  }
+
+  .cta-core {
+    background: rgba(10,10,10,.97);
+    border-radius: calc(2rem - 1.5px);
+    padding: 4.5rem 2rem;
+    text-align: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .cta-core h2 {
+    font-size: clamp(1.75rem, 3.5vw, 2.6rem);
+    font-weight: 800;
+    letter-spacing: -.035em;
+    color: #fff;
+    margin: 0;
+    line-height: 1.1;
+  }
+
+  .cta-core p {
+    font-size: .95rem;
+    color: rgba(255,255,255,.35);
+    margin: 0 0 .5rem;
+    line-height: 1.6;
+  }
+
+  .btn-cta-primary--lg {
+    font-size: .95rem;
+    padding: .88rem 1.3rem .88rem 1.8rem;
+  }
+
+  /* ── Footer ── */
+  .site-footer {
+    position: relative;
+    z-index: 1;
+    padding: 2rem 1.5rem;
+    border-top: 1px solid rgba(255,255,255,.04);
+  }
+
+  .footer-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .footer-brand {
+    color: rgba(255,255,255,.25);
+    font-size: .85rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    letter-spacing: -.01em;
+  }
+
+  .footer-copy {
+    color: rgba(255,255,255,.18);
+    font-size: .78rem;
+  }
+
+  /* ── Scroll reveal ── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition: opacity .85s cubic-bezier(0.32,0.72,0,1),
+                transform .85s cubic-bezier(0.32,0.72,0,1);
+  }
+
+  .reveal.in-view { opacity: 1; transform: translateY(0); }
+
+  /* ── Entry animation ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(22px); }
+    to   { opacity: 1; transform: translateY(0);    }
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 767px) {
+    .bento-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+    .steps-grid {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+    }
+    .cta-core { padding: 3rem 1.5rem; }
+  }
+
+  @media (max-width: 500px) {
+    .bento-grid { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="orb orb-1" aria-hidden="true"></div>
+<div class="orb orb-2" aria-hidden="true"></div>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="eyebrow-badge">
+    <span class="badge-dot"></span>
+    Processamento de mídia
+  </div>
+
+  <h1 class="hero-h1">
+    Redimensione, comprima<br>
+    e extraia — <em>sem complicação.</em>
+  </h1>
+
+  <p class="hero-sub">
+    Faça upload de imagens ou vídeos e processe em segundos.
+    Sem configuração, sem limite de tamanho absurdo.
+  </p>
+
+  <div class="hero-ctas">
+    <a href="{% url 'account_signup' %}" class="btn-cta-primary">
+      Começar grátis
+      <span class="cta-arrow">↗</span>
+    </a>
+    <a href="#features" class="btn-cta-ghost">
+      <i class="ri-arrow-down-line"></i>
+      Ver como funciona
+    </a>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="section-bento" id="features">
+  <div class="bento-grid">
+
+    <div class="bcard reveal">
+      <div class="bcard-inner">
+        <div class="bcard-num">01</div>
+        <div class="bcard-icon"><i class="ri-film-line"></i></div>
+        <h3>Extração de frames</h3>
+        <p>Converta qualquer vídeo em sequências de imagens JPEG de alta qualidade. Ideal para análise, thumbnails ou edição frame a frame.</p>
+        <div class="bcard-stat">
+          <span class="stat-n">∞</span>
+          <span class="stat-l">frames por vídeo</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bcard reveal" style="transition-delay:.1s">
+      <div class="bcard-inner">
+        <div class="bcard-num">02</div>
+        <div class="bcard-icon"><i class="ri-image-line"></i></div>
+        <h3>Redução de imagem</h3>
+        <p>Redimensiona automaticamente preservando proporção. Exporta em JPEG com qualidade otimizada para web.</p>
+        <div class="bcard-stat">
+          <span class="stat-n">800px</span>
+          <span class="stat-l">lado máximo</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bcard reveal" style="transition-delay:.2s">
+      <div class="bcard-inner">
+        <div class="bcard-num">03</div>
+        <div class="bcard-icon"><i class="ri-video-line"></i></div>
+        <h3>Compressão de vídeo</h3>
+        <p>Reencoda em H.264 via ffmpeg. Reduz o tamanho mantendo qualidade visual excelente para web e mobile.</p>
+        <div class="bcard-stat">
+          <span class="stat-n">H.264</span>
+          <span class="stat-l">CRF 23</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bcard reveal" style="transition-delay:.3s">
+      <div class="bcard-inner">
+        <div class="bcard-num">04</div>
+        <div class="bcard-icon"><i class="ri-magic-line"></i></div>
+        <h3>Conversor de GIF</h3>
+        <p>Converta imagens ou vídeos para GIF. Para vídeos, controle fps, tempo de início, duração e largura do resultado.</p>
+        <div class="bcard-stat">
+          <span class="stat-n">GIF</span>
+          <span class="stat-l">imagem ou vídeo</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- How it works -->
+<section class="section-steps">
+  <div class="steps-grid">
+    <div class="reveal">
+      <span class="steps-label">Como funciona</span>
+      <h2 class="steps-h2">Três passos.<br>Resultado em segundos.</h2>
+    </div>
+    <div class="steps-list reveal" style="transition-delay:.12s">
+      <div class="step-row">
+        <span class="step-n">01</span>
+        <div>
+          <h4>Faça upload</h4>
+          <p>Selecione uma imagem ou vídeo do seu dispositivo. Até 200 MB.</p>
+        </div>
+      </div>
+      <div class="step-row">
+        <span class="step-n">02</span>
+        <div>
+          <h4>Escolha a operação</h4>
+          <p>Extração de frames, redimensionamento de imagem ou compressão de vídeo.</p>
+        </div>
+      </div>
+      <div class="step-row">
+        <span class="step-n">03</span>
+        <div>
+          <h4>Baixe o resultado</h4>
+          <p>Arquivo processado disponível instantaneamente para download.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA final -->
+<section class="section-cta reveal">
+  <div class="cta-shell">
+    <div class="cta-core">
+      <h2>Pronto para começar?</h2>
+      <p>Crie sua conta grátis e processe seus primeiros arquivos agora.</p>
+      <a href="{% url 'account_signup' %}" class="btn-cta-primary btn-cta-primary--lg">
+        Criar conta
+        <span class="cta-arrow">↗</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function () {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('in-view');
+          observer.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.08 });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // Smooth scroll for anchor link
+    document.querySelector('a[href="#features"]')?.addEventListener('click', e => {
+      e.preventDefault();
+      document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+    });
+  })();
+</script>
+{% endblock %}

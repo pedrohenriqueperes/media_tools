@@ -3,45 +3,552 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}MediaTools{% endblock %}</title>
+  <title>{% block title %}MediaTools — Processamento de mídia online{% endblock %}</title>
+
+  <!-- SEO -->
+  <meta name="description" content="{% block meta_description %}Redimensione imagens, comprima vídeos e extraia frames online — sem instalação, sem configuração. Grátis para começar.{% endblock %}">
+  <meta name="robots" content="{% block meta_robots %}index, follow{% endblock %}">
+  <link rel="canonical" href="{{ request.build_absolute_uri|cut:'?' }}">
+  <meta name="author" content="MediaTools">
+  <meta name="theme-color" content="#060606">
+
+  <!-- Open Graph -->
+  <meta property="og:site_name" content="MediaTools">
+  <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}MediaTools — Processamento de mídia online{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}Redimensione imagens, comprima vídeos e extraia frames online — sem instalação, sem configuração.{% endblock %}">
+  <meta property="og:url" content="{{ request.build_absolute_uri }}">
+  <meta property="og:locale" content="pt_BR">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="{% block twitter_title %}MediaTools — Processamento de mídia online{% endblock %}">
+  <meta name="twitter:description" content="{% block twitter_description %}Redimensione imagens, comprima vídeos e extraia frames online.{% endblock %}">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0a0a'/%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%23a78bfa'/%3E%3Cstop offset='1' stop-color='%2338bdf8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='9' fill='url(%23g)'/%3E%3C/svg%3E">
+
+  {% block structured_data %}{% endblock %}
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css" rel="stylesheet">
+
   <style>
-    body { background: #f8f9fa; }
-    .navbar-brand { font-weight: 700; letter-spacing: .5px; }
-    .card { border: none; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-    .status-badge { font-size: .75rem; }
+    :root {
+      --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+      --nav-bg: rgba(8, 8, 8, 0.88);
+      --nav-border: rgba(255, 255, 255, 0.08);
+    }
+
+    *, *::before, *::after { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+    body { background: #f5f4f0; }
+
+    /* ── Floating nav ── */
+    .site-nav {
+      position: fixed;
+      top: 1.1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 200;
+      width: calc(100% - 2rem);
+      max-width: 900px;
+      background: var(--nav-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--nav-border);
+      border-radius: 100px;
+      padding: .45rem .45rem .45rem 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+    }
+
+    .nav-brand {
+      color: #fff;
+      font-size: .88rem;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .brand-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #a78bfa, #38bdf8);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: .15rem;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      flex: 1;
+    }
+
+    .nav-links a {
+      color: rgba(255,255,255,.5);
+      font-size: .82rem;
+      font-weight: 500;
+      text-decoration: none;
+      padding: .38rem .7rem;
+      border-radius: 100px;
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+      transition: color .2s, background .2s;
+    }
+
+    .nav-links a:hover {
+      color: #fff;
+      background: rgba(255,255,255,.07);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      flex-shrink: 0;
+    }
+
+    .nav-user-email {
+      color: rgba(255,255,255,.35);
+      font-size: .78rem;
+      max-width: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .btn-nav-ghost {
+      color: rgba(255,255,255,.55);
+      font-size: .8rem;
+      font-weight: 500;
+      padding: .42rem .9rem;
+      border-radius: 100px;
+      border: 1px solid rgba(255,255,255,.1);
+      background: transparent;
+      text-decoration: none;
+      cursor: pointer;
+      line-height: 1;
+      transition: color .2s, background .2s, border-color .2s;
+    }
+
+    .btn-nav-ghost:hover {
+      color: #fff;
+      background: rgba(255,255,255,.07);
+      border-color: rgba(255,255,255,.18);
+    }
+
+    .btn-nav-primary {
+      color: #080808;
+      font-size: .8rem;
+      font-weight: 700;
+      padding: .48rem .9rem .48rem 1.1rem;
+      border-radius: 100px;
+      background: #fff;
+      border: none;
+      text-decoration: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      line-height: 1;
+      transition: background .2s, transform .2s var(--ease-spring);
+    }
+
+    .btn-nav-primary:hover {
+      background: #e8e8e8;
+      color: #080808;
+      transform: scale(.98);
+    }
+
+    .btn-nav-primary .btn-arrow {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(0,0,0,.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .7rem;
+      transition: transform .25s var(--ease-spring);
+    }
+
+    .btn-nav-primary:hover .btn-arrow {
+      transform: translateX(1px) translateY(-1px) scale(1.1);
+    }
+
+    /* ── Hamburger ── */
+    .nav-hamburger {
+      display: none;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.07);
+      border: none;
+      cursor: pointer;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .nav-hamburger span {
+      display: block;
+      width: 15px;
+      height: 1.5px;
+      background: #fff;
+      border-radius: 2px;
+      position: absolute;
+      left: 50%;
+      transform-origin: center;
+      transition: all .35s var(--ease-spring);
+    }
+
+    .nav-hamburger span:nth-child(1) { transform: translateX(-50%) translateY(-4px); }
+    .nav-hamburger span:nth-child(2) { transform: translateX(-50%) translateY(4px); }
+    .nav-hamburger.open span:nth-child(1) { transform: translateX(-50%) rotate(45deg); }
+    .nav-hamburger.open span:nth-child(2) { transform: translateX(-50%) rotate(-45deg); }
+
+    /* ── Mobile overlay ── */
+    .nav-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(5,5,5,.95);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      z-index: 199;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: .25rem;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .3s;
+    }
+
+    .nav-overlay.open {
+      pointer-events: auto;
+      opacity: 1;
+    }
+
+    .nav-overlay a,
+    .nav-overlay button {
+      color: rgba(255,255,255,.6);
+      font-size: 1.4rem;
+      font-weight: 700;
+      text-decoration: none;
+      padding: .75rem 1.5rem;
+      border-radius: .75rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: block;
+      text-align: center;
+      opacity: 0;
+      transform: translateY(16px);
+      transition: color .2s, opacity .35s var(--ease-spring), transform .35s var(--ease-spring);
+    }
+
+    .nav-overlay.open a,
+    .nav-overlay.open button { opacity: 1; transform: translateY(0); }
+    .nav-overlay.open a:nth-child(1),
+    .nav-overlay.open button:nth-child(1) { transition-delay: .07s; }
+    .nav-overlay.open a:nth-child(2),
+    .nav-overlay.open button:nth-child(2) { transition-delay: .12s; }
+    .nav-overlay.open a:nth-child(3),
+    .nav-overlay.open button:nth-child(3) { transition-delay: .17s; }
+    .nav-overlay.open a:nth-child(4),
+    .nav-overlay.open button:nth-child(4) { transition-delay: .22s; }
+
+    .nav-overlay a:hover, .nav-overlay button:hover { color: #fff; }
+
+    /* ── Content offset for fixed nav ── */
+    .page-inner { padding-top: 5.5rem; }
+
+    /* ── Interior design system ── */
+    :root {
+      --c-bg:         #f7f7f5;
+      --c-card:       #ffffff;
+      --c-border:     rgba(0,0,0,.07);
+      --c-text:       #0f0f0f;
+      --c-text-2:     rgba(15,15,15,.45);
+      --c-text-3:     rgba(15,15,15,.28);
+      --c-accent:     #7c3aed;
+      --c-success-bg: rgba(22,163,74,.09);
+      --c-success:    #15803d;
+      --c-warning-bg: rgba(217,119,6,.09);
+      --c-warning:    #b45309;
+      --c-danger-bg:  rgba(220,38,38,.09);
+      --c-danger:     #b91c1c;
+      --c-muted-bg:   rgba(0,0,0,.05);
+      --c-muted:      rgba(0,0,0,.38);
+      --card-shadow:  0 1px 2px rgba(0,0,0,.04), 0 6px 20px rgba(0,0,0,.05);
+      --r-card:       1.1rem;
+      --r-input:      .65rem;
+    }
+
+    body { background: var(--c-bg); color: var(--c-text); }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--c-card);
+      border: 1px solid var(--c-border) !important;
+      border-radius: var(--r-card) !important;
+      box-shadow: var(--card-shadow) !important;
+    }
+
+    /* ── Form inputs ── */
+    .form-control, .form-select {
+      border: 1px solid rgba(0,0,0,.11) !important;
+      border-radius: var(--r-input) !important;
+      padding: .65rem 1rem !important;
+      font-size: .9rem !important;
+      color: var(--c-text) !important;
+      background: #fff !important;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      transition: border-color .18s, box-shadow .18s;
+    }
+
+    .form-control:focus, .form-select:focus {
+      border-color: var(--c-accent) !important;
+      box-shadow: 0 0 0 3px rgba(124,58,237,.1) !important;
+      outline: none;
+    }
+
+    .form-label {
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--c-text);
+      letter-spacing: .01em;
+      margin-bottom: .4rem;
+    }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      background: #111 !important;
+      border-color: #111 !important;
+      color: #fff !important;
+      border-radius: 100px !important;
+      font-weight: 600 !important;
+      font-size: .87rem !important;
+      padding: .6rem 1.4rem !important;
+      transition: all .2s var(--ease-spring) !important;
+      box-shadow: none !important;
+    }
+    .btn-primary:hover  { background: #2a2a2a !important; border-color: #2a2a2a !important; transform: scale(.98); }
+    .btn-primary:active { transform: scale(.96) !important; }
+
+    .btn-outline-secondary {
+      border-radius: 100px !important;
+      font-weight: 500 !important;
+      font-size: .87rem !important;
+      padding: .58rem 1.2rem !important;
+      border-color: rgba(0,0,0,.13) !important;
+      color: var(--c-text-2) !important;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+    .btn-outline-secondary:hover {
+      background: rgba(0,0,0,.04) !important;
+      border-color: rgba(0,0,0,.2) !important;
+      color: var(--c-text) !important;
+    }
+
+    /* ── Status pills ── */
+    .spill {
+      display: inline-flex;
+      align-items: center;
+      gap: .35rem;
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      padding: .28rem .7rem;
+      border-radius: 100px;
+    }
+    .spill::before {
+      content: '';
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .spill-done       { background: var(--c-success-bg); color: var(--c-success); }
+    .spill-done::before { background: var(--c-success); }
+    .spill-processing { background: var(--c-warning-bg); color: var(--c-warning); }
+    .spill-processing::before { background: var(--c-warning); animation: dot-pulse 1.4s ease-in-out infinite; }
+    .spill-error      { background: var(--c-danger-bg);  color: var(--c-danger); }
+    .spill-error::before  { background: var(--c-danger); }
+    .spill-pending    { background: var(--c-muted-bg);   color: var(--c-muted); }
+    .spill-pending::before { background: var(--c-muted); }
+
+    @keyframes dot-pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: .4; transform: scale(.7); }
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: .75rem;
+    }
+
+    .page-header-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -.025em;
+      color: var(--c-text);
+      margin: 0;
+    }
+
+    /* ── Back link ── */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      color: var(--c-text-2);
+      font-size: .82rem;
+      font-weight: 500;
+      text-decoration: none;
+      margin-bottom: 1.25rem;
+      transition: color .15s;
+    }
+    .back-link:hover { color: var(--c-text); }
+
+    /* ── Footer ── */
+    .site-footer {
+      border-top: 1px solid var(--c-border);
+      padding: 1.5rem 1.5rem;
+      margin-top: auto;
+    }
+
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      font-size: .84rem;
+      font-weight: 700;
+      color: var(--c-text);
+      letter-spacing: -.01em;
+      text-decoration: none;
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+    }
+
+    .footer-links a {
+      font-size: .81rem;
+      color: var(--c-text-2);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color .15s;
+    }
+
+    .footer-links a:hover { color: var(--c-text); }
+
+    .footer-copy {
+      font-size: .78rem;
+      color: var(--c-text-3);
+    }
+
+    /* Home page dark footer */
+    body.page-home .site-footer { border-top-color: rgba(255,255,255,.04); }
+    body.page-home .footer-brand { color: rgba(255,255,255,.28); }
+    body.page-home .footer-links a { color: rgba(255,255,255,.28); }
+    body.page-home .footer-links a:hover { color: rgba(255,255,255,.65); }
+    body.page-home .footer-copy { color: rgba(255,255,255,.15); }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      .nav-hamburger { display: flex; align-items: center; justify-content: center; }
+      .nav-links, .nav-actions { display: none !important; }
+      .site-nav { padding: .45rem .45rem .45rem 1.1rem; }
+    }
   </style>
   {% block extra_css %}{% endblock %}
 </head>
-<body>
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
-      <a class="navbar-brand" href="{% url 'dashboard' %}"><i class="bi bi-film"></i> MediaTools</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="nav">
-        <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
-          {% if user.is_authenticated %}
-            <li class="nav-item"><a class="nav-link" href="{% url 'submit_job' %}"><i class="bi bi-upload"></i> Enviar</a></li>
-            <li class="nav-item"><span class="nav-link text-secondary small">{{ user.email }}</span></li>
-            <li class="nav-item">
-              <form method="post" action="{% url 'account_logout' %}">
-                {% csrf_token %}
-                <button class="btn btn-sm btn-outline-light" type="submit">Sair</button>
-              </form>
-            </li>
-          {% else %}
-            <li class="nav-item"><a class="btn btn-sm btn-outline-light" href="{% url 'account_login' %}">Entrar</a></li>
-            <li class="nav-item"><a class="btn btn-sm btn-light ms-2" href="{% url 'account_signup' %}">Cadastrar</a></li>
-          {% endif %}
-        </ul>
-      </div>
+<body class="{% block body_class %}{% endblock %}">
+
+  <nav class="site-nav" role="navigation" aria-label="Principal">
+    <a class="nav-brand" href="{% url 'home' %}">
+      <span class="brand-dot"></span>
+      MediaTools
+    </a>
+
+    <ul class="nav-links">
+      {% if user.is_authenticated %}
+        <li><a href="{% url 'dashboard' %}"><i class="ri-layout-grid-line"></i> Dashboard</a></li>
+        <li><a href="{% url 'submit_job' %}"><i class="ri-upload-2-line"></i> Enviar</a></li>
+      {% endif %}
+    </ul>
+
+    <div class="nav-actions">
+      {% if user.is_authenticated %}
+        <span class="nav-user-email d-none d-md-inline">{{ user.email }}</span>
+        <form method="post" action="{% url 'account_logout' %}" style="margin:0">
+          {% csrf_token %}
+          <button class="btn-nav-ghost" type="submit">Sair</button>
+        </form>
+      {% else %}
+        <a class="btn-nav-ghost" href="{% url 'account_login' %}">Entrar</a>
+        <a class="btn-nav-primary" href="{% url 'account_signup' %}">
+          Cadastrar
+          <span class="btn-arrow">↗</span>
+        </a>
+      {% endif %}
     </div>
+
+    <button class="nav-hamburger" id="navHamburger" aria-label="Abrir menu">
+      <span></span><span></span>
+    </button>
   </nav>
 
-  <main class="container py-4">
+  <div class="nav-overlay" id="navOverlay" aria-hidden="true">
+    {% if user.is_authenticated %}
+      <a href="{% url 'dashboard' %}">Dashboard</a>
+      <a href="{% url 'submit_job' %}">Enviar arquivo</a>
+      <form method="post" action="{% url 'account_logout' %}" style="margin:0;width:100%;text-align:center">
+        {% csrf_token %}
+        <button>Sair</button>
+      </form>
+    {% else %}
+      <a href="{% url 'account_login' %}">Entrar</a>
+      <a href="{% url 'account_signup' %}">Cadastrar</a>
+    {% endif %}
+  </div>
+
+  <main class="{% block main_class %}page-inner container pb-4{% endblock %}" style="min-height:calc(100dvh - 120px)">
     {% for message in messages %}
       <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
         {{ message }}
@@ -51,7 +558,49 @@
     {% block content %}{% endblock %}
   </main>
 
+  {% block footer %}
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <a class="footer-brand" href="{% url 'home' %}">
+        <span class="brand-dot"></span>
+        MediaTools
+      </a>
+      <nav class="footer-links">
+        {% if user.is_authenticated %}
+          <a href="{% url 'dashboard' %}">Dashboard</a>
+          <a href="{% url 'submit_job' %}">Enviar arquivo</a>
+        {% else %}
+          <a href="{% url 'account_login' %}">Entrar</a>
+          <a href="{% url 'account_signup' %}">Cadastrar</a>
+        {% endif %}
+      </nav>
+      <span class="footer-copy">© 2026 MediaTools</span>
+    </div>
+  </footer>
+  {% endblock %}
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    (function () {
+      const ham = document.getElementById('navHamburger');
+      const overlay = document.getElementById('navOverlay');
+      if (!ham) return;
+      ham.addEventListener('click', () => {
+        const open = ham.classList.toggle('open');
+        overlay.classList.toggle('open', open);
+        overlay.setAttribute('aria-hidden', String(!open));
+        document.body.style.overflow = open ? 'hidden' : '';
+      });
+      overlay.querySelectorAll('a').forEach(a => {
+        a.addEventListener('click', () => {
+          ham.classList.remove('open');
+          overlay.classList.remove('open');
+          overlay.setAttribute('aria-hidden', 'true');
+          document.body.style.overflow = '';
+        });
+      });
+    })();
+  </script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>
