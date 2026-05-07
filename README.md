@@ -1,14 +1,18 @@
-# Resize
+# MediaTools
 
-Aplicação web Django para processamento de mídia. Faça upload de imagens ou vídeos e execute operações como extração de frames, redimensionamento de imagens e compressão de vídeos — tudo pelo navegador.
+Aplicação web Django para processamento de mídia. Faça upload de imagens ou vídeos e execute operações como redimensionamento, compressão, extração de frames, conversão de formato e geração de GIFs — tudo pelo navegador.
 
 ## Funcionalidades
 
-- **Extração de frames** — extrai frames de vídeos e salva como JPEG via OpenCV
-- **Redimensionamento de imagem** — reduz para no máximo 800px mantendo proporção, JPEG qualidade 85 (Pillow)
-- **Compressão de vídeo** — reencoda em H.264 CRF 23 com ffmpeg
-- **Autenticação** — login por e-mail via django-allauth
-- **Dashboard** — histórico de jobs com status, tamanho original/final e percentual de redução
+| Operação | Entrada | Saída | Detalhes |
+|---|---|---|---|
+| **Redução de imagem** | JPG, PNG, WEBP, BMP, TIFF | JPEG | Reduz para máx. 800px, qualidade 85 (Pillow) |
+| **Compressão de vídeo** | MP4, MOV, AVI, MKV | MP4 | H.264 CRF 23 via ffmpeg |
+| **Extração de frames** | MP4, MOV, AVI, MKV | ZIP de JPEGs | OpenCV, todos os frames |
+| **Converter formato** | JPG, PNG, WEBP, BMP, TIFF, GIF | JPEG/PNG/WEBP/BMP/TIFF/GIF | Pillow, qualidade otimizada por formato |
+| **Imagem para GIF** | JPG, PNG, WEBP, BMP, TIFF | GIF | Pillow |
+| **Vídeo para GIF** | MP4, MOV, AVI, MKV | GIF | MoviePy; configurável: fps, início, duração, largura |
+| **Conversão em lote** | Até 100 imagens | ZIP | Converte todas para um formato alvo de uma vez |
 
 ## Requisitos
 
@@ -20,8 +24,8 @@ Aplicação web Django para processamento de mídia. Faça upload de imagens ou 
 ## Setup
 
 ```bash
-git clone <repo>
-cd resize
+git clone https://github.com/pedrohenriqueperes/media_tools.git
+cd media_tools
 
 python -m venv .venv
 source .venv/bin/activate
@@ -52,21 +56,42 @@ Acesse em `http://localhost:8000`.
 ## Estrutura
 
 ```
-config/          # Configurações Django (settings, urls, wsgi, celery)
-core/            # App principal
-  models.py      # MediaJob — registro de cada processamento
-  tasks.py       # Lógica de processamento (frames, resize imagem/vídeo)
-  views.py       # dashboard, submit_job, job_detail
-  forms.py       # MediaJobForm
+config/              # Configurações Django (settings, urls, wsgi, celery)
+  seo_views.py       # Views para robots.txt e sitemap.xml
+core/                # App principal
+  models.py          # MediaJob — registro de cada processamento
+  tasks.py           # Lógica de processamento de todos os tipos de job
+  views.py           # dashboard, submit_job, submit_batch, job_detail
+  forms.py           # MediaJobForm com validação por tipo
+  urls.py            # Rotas do app
 templates/
-  base.html      # Layout Bootstrap 5
-  core/          # dashboard, submit, job_detail
-  account/       # Overrides allauth
-media/           # Uploads e outputs (não versionado)
-frames.py        # Script standalone de extração de frames
-resize_photos.py # Script standalone de redimensionamento de imagens
-resize_videos.py # Script standalone de compressão de vídeos
+  base.html          # Navbar flutuante glass pill + design system
+  core/              # home, dashboard, submit, submit_batch, job_detail
+  account/           # Overrides allauth (login, signup)
+media/               # Uploads e outputs (não versionado)
+  uploads/           # Arquivos enviados pelo usuário
+    batch_{pk}/      # Inputs de jobs de conversão em lote
+  outputs/           # Resultados processados
+conversor_gif.py     # Script standalone de conversão para GIF
+resize_photos.py     # Script standalone de redimensionamento de imagens
+resize_videos.py     # Script standalone de compressão de vídeos
+frames.py            # Script standalone de extração de frames
+image_converter_core.md  # Documentação da lógica de conversão em lote
 ```
+
+## Rotas principais
+
+| Rota | Descrição |
+|---|---|
+| `/` | Home pública com descrição das funcionalidades |
+| `/dashboard/` | Lista de jobs do usuário (requer login) |
+| `/submit/` | Envio de arquivo único para processamento |
+| `/submit/batch/` | Envio de múltiplas imagens para conversão em lote |
+| `/job/<pk>/` | Detalhes e resultado de um job |
+| `/accounts/login/` | Login por e-mail |
+| `/accounts/signup/` | Cadastro |
+| `/sitemap.xml` | Sitemap XML |
+| `/robots.txt` | Robots.txt |
 
 ## Stack
 
@@ -74,8 +99,8 @@ resize_videos.py # Script standalone de compressão de vídeos
 |---|---|
 | Framework | Django 6 |
 | Banco de dados | PostgreSQL + psycopg2 |
-| Auth | django-allauth |
-| Frontend | Bootstrap 5 |
+| Auth | django-allauth (e-mail only) |
+| Frontend | Bootstrap 5 + Plus Jakarta Sans + Remix Icons |
 | Imagens | Pillow + OpenCV |
 | Vídeos | ffmpeg + MoviePy |
 | Fila de tarefas | Celery + Redis |
@@ -87,4 +112,3 @@ resize_videos.py # Script standalone de compressão de vídeos
 python manage.py makemigrations core   # após alterar models.py
 python manage.py collectstatic         # para produção
 ```
-# media_tools
