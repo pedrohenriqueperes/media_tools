@@ -3,7 +3,6 @@ import subprocess
 import zipfile
 import threading
 from pathlib import Path
-from celery import shared_task
 from django.utils import timezone
 from django.conf import settings
 
@@ -109,10 +108,11 @@ def process_job(job_pk):
             'status', 'output_path', 'input_size', 'output_size',
             'frame_count', 'error_message', 'finished_at',
         ])
-        cleanup_job_files.apply_async(args=[job_pk], countdown=60)
+        t = threading.Timer(60, cleanup_job_files, args=[job_pk])
+        t.daemon = True
+        t.start()
 
 
-@shared_task
 def cleanup_job_files(job_pk):
     from .models import MediaJob
 
