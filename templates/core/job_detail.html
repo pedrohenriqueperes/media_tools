@@ -96,6 +96,16 @@
     </div>
     {% endif %}
 
+    {# ── Expired notice ── #}
+    {% if job.status == 'done' and not output_url %}
+    <div class="card p-4 expired-card">
+      <div class="expired-icon"><i class="ri-timer-flash-line"></i></div>
+      <p class="expired-title">Arquivos removidos</p>
+      <p class="expired-sub">Os arquivos são apagados automaticamente 60 segundos após o processamento para não ocupar espaço no servidor. Envie o arquivo novamente para processar.</p>
+      <a href="{% url 'submit_job' %}" class="btn btn-primary mt-1">Enviar novamente</a>
+    </div>
+    {% endif %}
+
     {# ── Result ── #}
     {% if output_url %}
 
@@ -367,6 +377,38 @@
     font-size: .78rem;
     color: var(--c-text-3);
     margin: .75rem 0 0;
+  }
+
+  /* Expired */
+  .expired-card {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2.5rem !important;
+  }
+  .expired-icon {
+    width: 48px; height: 48px;
+    border-radius: .875rem;
+    background: var(--c-warning-bg);
+    color: var(--c-warning);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+  }
+  .expired-title {
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -.02em;
+    color: var(--c-text);
+    margin: 0 0 .35rem;
+  }
+  .expired-sub {
+    font-size: .85rem;
+    color: var(--c-text-2);
+    max-width: 380px;
+    line-height: 1.65;
+    margin: 0;
   }
 
   .batch-note {

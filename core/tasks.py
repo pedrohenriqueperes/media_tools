@@ -1,7 +1,9 @@
+import shutil
 import subprocess
 import zipfile
 import threading
 from pathlib import Path
+from celery import shared_task
 from django.utils import timezone
 from django.conf import settings
 
@@ -107,6 +109,34 @@ def process_job(job_pk):
             'status', 'output_path', 'input_size', 'output_size',
             'frame_count', 'error_message', 'finished_at',
         ])
+        cleanup_job_files.apply_async(args=[job_pk], countdown=60)
+
+
+@shared_task
+def cleanup_job_files(job_pk):
+    from .models import MediaJob
+
+    # Apaga outputs
+    output_dir = Path(settings.MEDIA_ROOT) / 'outputs' / str(job_pk)
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+
+    # Apaga inputs de batch
+    batch_dir = Path(settings.MEDIA_ROOT) / 'uploads' / f'batch_{job_pk}'
+    if batch_dir.exists():
+        shutil.rmtree(batch_dir)
+
+    # Apaga input de job único
+    try:
+        job = MediaJob.objects.get(pk=job_pk)
+        if job.input_file and job.input_file.name:
+            input_path = Path(job.input_file.path)
+            if input_path.exists():
+                input_path.unlink()
+        job.output_path = ''
+        job.save(update_fields=['output_path'])
+    except MediaJob.DoesNotExist:
+        pass
 
 
 def _zip_dir(directory, zip_path, pattern='*'):

@@ -22,6 +22,9 @@ class Command(BaseCommand):
             output_dir = Path(settings.MEDIA_ROOT) / 'outputs' / str(job.pk)
             if output_dir.exists():
                 shutil.rmtree(output_dir)
+            batch_dir = Path(settings.MEDIA_ROOT) / 'uploads' / f'batch_{job.pk}'
+            if batch_dir.exists():
+                shutil.rmtree(batch_dir)
             try:
                 job.input_file.delete(save=False)
             except Exception:
