@@ -32,6 +32,18 @@ class MediaJob(models.Model):
     error_message = models.TextField(blank=True)
     job_params = models.JSONField(default=dict, blank=True)
 
+    # Pagamento
+    PAYMENT_STATUS_CHOICES = [
+        ('free', 'Grátis'),
+        ('pending', 'Pendente'),
+        ('paid', 'Pago'),
+        ('failed', 'Falhou'),
+    ]
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='free')
+    payment_transaction_id = models.CharField(max_length=255, blank=True, null=True)
+    payment_qr_code = models.TextField(blank=True, null=True)
+    payment_clipboard = models.TextField(blank=True, null=True)
+
     class Meta:
         ordering = ['-created_at']
 
@@ -43,3 +55,17 @@ class MediaJob(models.Model):
         if self.input_size and self.output_size and self.input_size > 0:
             return round((1 - self.output_size / self.input_size) * 100)
         return None
+
+
+class JobPricing(models.Model):
+    TYPE_CHOICES = MediaJob.TYPE_CHOICES
+
+    job_type = models.CharField(max_length=20, choices=TYPE_CHOICES, unique=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+
+    class Meta:
+        verbose_name = "Preço da Tarefa"
+        verbose_name_plural = "Preços das Tarefas"
+
+    def __str__(self):
+        return f"{dict(self.TYPE_CHOICES).get(self.job_type)} — R$ {self.price}"

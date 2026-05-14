@@ -5,6 +5,7 @@ import threading
 from pathlib import Path
 from django.utils import timezone
 from django.conf import settings
+from config.celery import app
 
 
 def process_job_async(job_pk):
@@ -13,9 +14,11 @@ def process_job_async(job_pk):
     t.start()
 
 
-def process_job(job_pk):
+@app.task(name='core.tasks.process_job_task')
+def process_job_task(job_pk):
     from .models import MediaJob
     job = MediaJob.objects.get(pk=job_pk)
+    # ... rest of the code is identical, just changed the decorator and function name
     job.status = 'processing'
     job.save(update_fields=['status'])
 
@@ -132,32 +135,28 @@ def _delete_job_files(job):
     job.save(update_fields=['output_path'])
 
 
-def cleanup_worker_loop():
-    """Thread persistente: a cada 30s apaga arquivos de jobs concluídos há mais de 60s."""
-    import time
+@app.task(name='core.tasks.cleanup_old_media')
+def cleanup_old_media():
+    """Tarefa agendada: apaga arquivos de jobs concluídos há mais de 2 minutos."""
+    from .models import MediaJob
+    from django.utils import timezone
     from datetime import timedelta
-    from django.db import connection
-
-    while True:
-        time.sleep(30)
+    
+    # Cutoff de 2 minutos para produção
+    cutoff = timezone.now() - timedelta(minutes=2)
+    
+    jobs = MediaJob.objects.filter(
+        finished_at__lt=cutoff
+    ).exclude(output_path='')
+    
+    removed_count = 0
+    for job in jobs:
         try:
-            from .models import MediaJob
-            cutoff = timezone.now() - timedelta(seconds=60)
-            jobs = MediaJob.objects.filter(
-                finished_at__lt=cutoff
-            ).exclude(output_path='')
-            for job in jobs:
-                try:
-                    _delete_job_files(job)
-                except Exception:
-                    pass
+            _delete_job_files(job)
+            removed_count += 1
         except Exception:
             pass
-        finally:
-            try:
-                connection.close()
-            except Exception:
-                pass
+    return f"Limpeza concluída: {removed_count} jobs limpos."
 
 
 def _zip_dir(directory, zip_path, pattern='*'):

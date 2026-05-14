@@ -389,6 +389,10 @@ form.addEventListener('submit', function(e) {
     try {
       const data = JSON.parse(xhr.responseText);
       if (xhr.status === 200 && data.job_pk) {
+        if (data.payment_required) {
+          window.location.href = '/job/' + data.job_pk + '/payment/';
+          return;
+        }
         window.location.href = '/job/' + data.job_pk + '/';
       } else {
         submitBtn.disabled = false;

@@ -2,7 +2,7 @@
 
 **PT** · [EN](#mediatools-1)
 
-Aplicação web Django para processamento de mídia. Faça upload de imagens ou vídeos e execute operações como redimensionamento, compressão, extração de frames, conversão de formato e geração de GIFs — tudo pelo navegador.
+Aplicação web Django para processamento de mídia. Faça upload de imagens ou vídeos e execute operações como redimensionamento, compressão, extração de frames, conversão de formato e geração de GIFs — tudo pelo navegador. Suporte a pagamentos PIX para tarefas pagas.
 
 ## Funcionalidades
 
@@ -18,11 +18,12 @@ Aplicação web Django para processamento de mídia. Faça upload de imagens ou 
 
 ## Requisitos
 
-- Python 3.11+
+- Python 3.12+
 - PostgreSQL
-- ffmpeg (`brew install ffmpeg`)
+- Redis
+- ffmpeg (`brew install ffmpeg`) — apenas para dev local
 
-## Setup
+## Setup — Dev Local
 
 ```bash
 git clone https://github.com/pedrohenriqueperes/media_tools.git
@@ -33,7 +34,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Crie um arquivo `.env` na raiz:
+Crie um arquivo `.env` na raiz (use `.env.example` como base):
 
 ```env
 SECRET_KEY=sua-chave-secreta
@@ -44,6 +45,10 @@ DB_USER=seu_usuario
 DB_PASSWORD=sua_senha
 DB_HOST=localhost
 DB_PORT=5432
+CELERY_BROKER_URL=redis://localhost:6379/0
+PAYMENT_API_URL=https://mypayments.store
+EMAIL_HOST_USER=seu@gmail.com
+EMAIL_HOST_PASSWORD=sua-app-password
 ```
 
 ```bash
@@ -54,18 +59,45 @@ python manage.py runserver
 
 Acesse em `http://localhost:8000`.
 
-## Limpeza automática de arquivos
-
-Os arquivos de input e output são **apagados automaticamente 60 segundos** após o término do processamento, tanto para tarefas concluídas quanto para erros. Nenhuma configuração extra é necessária — uma thread de background inicia junto com o servidor e escaneia o banco a cada 30 segundos.
-
-O histórico de tarefas permanece visível no dashboard. Após a expiração, o download não estará mais disponível e a interface exibe um aviso. Para processar novamente, basta reenviar o arquivo.
-
-Para remover tarefas e arquivos mais antigos manualmente:
+## Setup — Docker
 
 ```bash
-python manage.py cleanup_old_jobs           # padrão: remove registros com mais de 7 dias
-python manage.py cleanup_old_jobs --days 1
+cp .env.example .env   # preencha as variáveis
+docker-compose up --build
 ```
+
+O `docker-compose.yml` sobe 5 serviços:
+
+| Serviço | Papel |
+|---|---|
+| `db` | PostgreSQL 15 |
+| `redis` | Broker Celery |
+| `web` | Django (runserver na porta 8000) |
+| `worker` | Celery worker (concurrency=2, limite 4 GB RAM) |
+| `beat` | Celery Beat — limpeza automática a cada 2 min |
+
+Migrações e `collectstatic` rodam automaticamente no startup do `web`.
+
+## Pagamentos PIX
+
+Tarefas podem ter preço configurado via admin (`JobPricing`). Se o preço for `> 0`, o usuário é redirecionado para uma página de pagamento PIX antes do processamento.
+
+**Fluxo:**
+1. Usuário submete a tarefa → view verifica preço em `JobPricing`
+2. Se pago: gera cobrança na API externa (`PAYMENT_API_URL`) → exibe QR Code e chave Copia e Cola
+3. Página de pagamento faz polling em `/job/<pk>/check-payment/` a cada 3s
+4. Após confirmação → processamento inicia normalmente
+
+A API de pagamentos é configurada via `PAYMENT_API_URL` no `.env`. Sem configuração de preço, tarefas ficam gratuitas (`payment_status = 'free'`).
+
+## Limpeza automática de arquivos
+
+Os arquivos de input e output são **apagados automaticamente** após o término do processamento:
+
+- **Local**: thread de background inicia junto com o servidor (`AppConfig.ready()`), escaneia o banco a cada 30s e apaga arquivos de tarefas concluídas há mais de 60s.
+- **Docker/Prod**: Celery Beat executa `cleanup_old_media` a cada 2 minutos.
+
+O histórico de tarefas permanece visível no dashboard. Após a expiração, o download não estará mais disponível e a interface exibe um aviso.
 
 ## Estrutura
 
@@ -73,14 +105,15 @@ python manage.py cleanup_old_jobs --days 1
 config/              # Configurações Django (settings, urls, wsgi, celery)
   seo_views.py       # Views para robots.txt e sitemap.xml
 core/
-  models.py          # MediaJob — registro de cada tarefa
-  tasks.py           # Lógica de processamento + cleanup_worker_loop
+  models.py          # MediaJob + JobPricing
+  tasks.py           # Lógica de processamento + cleanup_old_media + cleanup_worker_loop
+  payments.py        # generate_pix_payment / verify_pix_payment (API externa)
   apps.py            # Inicia a thread de limpeza no AppConfig.ready()
-  views.py           # dashboard, submit_job, submit_batch, job_detail
+  views.py           # dashboard, submit_job, submit_batch, job_detail, job_payment
   forms.py           # MediaJobForm com validação por tipo
 templates/
   base.html          # Navbar flutuante + design system CSS
-  core/              # home, dashboard, submit, submit_batch, job_detail
+  core/              # home, dashboard, submit, submit_batch, job_detail, job_payment
   account/           # Overrides allauth (login, signup)
 media/               # Uploads e outputs (não versionado)
   uploads/           # Arquivos de input (tarefas únicas e lote)
@@ -97,6 +130,9 @@ media/               # Uploads e outputs (não versionado)
 | `/submit/` | Nova tarefa — arquivo único |
 | `/submit/batch/` | Conversão em lote de imagens |
 | `/job/<pk>/` | Detalhe e download do resultado |
+| `/job/<pk>/payment/` | Página de pagamento PIX |
+| `/job/<pk>/check-payment/` | Polling do status do pagamento |
+| `/webhook/` | Webhook de confirmação de pagamento |
 | `/sitemap.xml` | Sitemap XML |
 | `/robots.txt` | Robots.txt |
 
@@ -106,11 +142,14 @@ media/               # Uploads e outputs (não versionado)
 |---|---|
 | Framework | Django 6 |
 | Banco de dados | PostgreSQL + psycopg2 |
-| Auth | django-allauth (e-mail only) |
+| Fila de tarefas | Celery + Redis |
+| Auth | django-allauth (e-mail only, verificação obrigatória) |
 | Frontend | Bootstrap 5 + Plus Jakarta Sans + Remix Icons |
 | Imagens | Pillow + OpenCV |
 | Vídeos | ffmpeg + MoviePy |
+| Pagamentos | PIX via API externa (`mypayments.store`) |
 | Static files | Whitenoise |
+| Containerização | Docker + Docker Compose |
 
 ---
 
@@ -118,7 +157,7 @@ media/               # Uploads e outputs (não versionado)
 
 **EN** · [PT](#mediatools)
 
-A Django web app for media processing. Upload images or videos and run operations like resizing, compression, frame extraction, format conversion and GIF generation — all from the browser.
+A Django web app for media processing. Upload images or videos and run operations like resizing, compression, frame extraction, format conversion and GIF generation — all from the browser. PIX payment support for paid tasks.
 
 ## Features
 
@@ -134,11 +173,12 @@ A Django web app for media processing. Upload images or videos and run operation
 
 ## Requirements
 
-- Python 3.11+
+- Python 3.12+
 - PostgreSQL
-- ffmpeg (`brew install ffmpeg`)
+- Redis
+- ffmpeg (`brew install ffmpeg`) — local dev only
 
-## Setup
+## Setup — Local Dev
 
 ```bash
 git clone https://github.com/pedrohenriqueperes/media_tools.git
@@ -149,7 +189,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Create a `.env` file at the project root:
+Create a `.env` file at the project root (use `.env.example` as a template):
 
 ```env
 SECRET_KEY=your-secret-key
@@ -160,6 +200,10 @@ DB_USER=your_user
 DB_PASSWORD=your_password
 DB_HOST=localhost
 DB_PORT=5432
+CELERY_BROKER_URL=redis://localhost:6379/0
+PAYMENT_API_URL=https://mypayments.store
+EMAIL_HOST_USER=your@gmail.com
+EMAIL_HOST_PASSWORD=your-app-password
 ```
 
 ```bash
@@ -170,18 +214,45 @@ python manage.py runserver
 
 Open `http://localhost:8000`.
 
-## Automatic file cleanup
-
-Input and output files are **automatically deleted 60 seconds** after processing completes, for both successful and failed tasks. No extra configuration required — a background thread starts with the server and scans the database every 30 seconds.
-
-Task history remains visible in the dashboard. After expiry, the download is no longer available and the UI shows a notice. To process again, simply re-upload the file.
-
-To manually remove old tasks and files:
+## Setup — Docker
 
 ```bash
-python manage.py cleanup_old_jobs           # default: removes records older than 7 days
-python manage.py cleanup_old_jobs --days 1
+cp .env.example .env   # fill in variables
+docker-compose up --build
 ```
+
+`docker-compose.yml` brings up 5 services:
+
+| Service | Role |
+|---|---|
+| `db` | PostgreSQL 15 |
+| `redis` | Celery broker |
+| `web` | Django (runserver on port 8000) |
+| `worker` | Celery worker (concurrency=2, 4 GB RAM limit) |
+| `beat` | Celery Beat — automatic cleanup every 2 min |
+
+Migrations and `collectstatic` run automatically on `web` startup.
+
+## PIX Payments
+
+Tasks can have a price configured via the admin panel (`JobPricing`). If the price is `> 0`, the user is redirected to a PIX payment page before processing starts.
+
+**Flow:**
+1. User submits a task → view checks price in `JobPricing`
+2. If paid: generates a charge on the external API (`PAYMENT_API_URL`) → displays QR Code and Pix copy-paste key
+3. Payment page polls `/job/<pk>/check-payment/` every 3s
+4. After confirmation → processing starts normally
+
+The payment API is configured via `PAYMENT_API_URL` in `.env`. Without a configured price, tasks remain free (`payment_status = 'free'`).
+
+## Automatic file cleanup
+
+Input and output files are **automatically deleted** after processing completes:
+
+- **Local**: a background thread starts with the server (`AppConfig.ready()`), scans the database every 30s, and deletes files for tasks completed more than 60s ago.
+- **Docker/Prod**: Celery Beat runs `cleanup_old_media` every 2 minutes.
+
+Task history stays visible in the dashboard. After expiry, the download is no longer available and the UI shows a notice.
 
 ## Project structure
 
@@ -189,14 +260,15 @@ python manage.py cleanup_old_jobs --days 1
 config/              # Django project (settings, urls, wsgi, celery)
   seo_views.py       # robots.txt and sitemap.xml views
 core/
-  models.py          # MediaJob — tracks each task
-  tasks.py           # Processing logic + cleanup_worker_loop
+  models.py          # MediaJob + JobPricing
+  tasks.py           # Processing logic + cleanup_old_media + cleanup_worker_loop
+  payments.py        # generate_pix_payment / verify_pix_payment (external API)
   apps.py            # Starts the cleanup thread in AppConfig.ready()
-  views.py           # dashboard, submit_job, submit_batch, job_detail
+  views.py           # dashboard, submit_job, submit_batch, job_detail, job_payment
   forms.py           # MediaJobForm with per-type file validation
 templates/
   base.html          # Floating navbar + shared CSS design system
-  core/              # home, dashboard, submit, submit_batch, job_detail
+  core/              # home, dashboard, submit, submit_batch, job_detail, job_payment
   account/           # allauth overrides (login, signup)
 media/               # Uploads and outputs (not committed)
   uploads/           # Input files (single tasks and batch)
@@ -213,6 +285,9 @@ media/               # Uploads and outputs (not committed)
 | `/submit/` | New task — single file |
 | `/submit/batch/` | Multi-image batch conversion |
 | `/job/<pk>/` | Task detail and result download |
+| `/job/<pk>/payment/` | PIX payment page |
+| `/job/<pk>/check-payment/` | Payment status polling |
+| `/webhook/` | Payment confirmation webhook |
 | `/sitemap.xml` | XML sitemap |
 | `/robots.txt` | Robots.txt |
 
@@ -222,8 +297,11 @@ media/               # Uploads and outputs (not committed)
 |---|---|
 | Framework | Django 6 |
 | Database | PostgreSQL + psycopg2 |
-| Auth | django-allauth (email only) |
+| Task queue | Celery + Redis |
+| Auth | django-allauth (email only, mandatory verification) |
 | Frontend | Bootstrap 5 + Plus Jakarta Sans + Remix Icons |
 | Images | Pillow + OpenCV |
 | Videos | ffmpeg + MoviePy |
+| Payments | PIX via external API (`mypayments.store`) |
 | Static files | Whitenoise |
+| Containerisation | Docker + Docker Compose |

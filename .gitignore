@@ -10,3 +10,6 @@ media/
 *.egg-info/
 dist/
 .coverage
+celerybeat-schedule
+celerybeat-schedule.db
+celerybeat.pid
